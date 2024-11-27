@@ -391,17 +391,22 @@ main:
 		layer.Captures = layer.Captures[1:]
 		capture := queryCapture.Match.Captures[queryCapture.Index]
 
+		// If this capture represents an injection, then process the injection.
 		if queryCapture.Match.PatternIndex < layer.Config.LocalsPatternIndex {
 			languageName, contentNode, includeChildren := injectionForMatch(layer.Config, h.LanguageName, queryCapture.Match, h.Source)
 
+			// Explicitly remove this match so that none of its other captures will remain
+			// in the stream of captures.
 			queryCapture.Match.Remove()
 
+			// If a language is found with the given name, then add a new language layer
+			// to the highlighted document.
 			if languageName != "" && contentNode != nil {
 				newConfig := h.InjectionCallback(languageName)
 				if newConfig != nil {
-					ranges := intersectRanges(h.Layers[0].Ranges, []tree_sitter.Node{*contentNode}, includeChildren)
+					ranges := intersectRanges(layer.Ranges, []tree_sitter.Node{*contentNode}, includeChildren)
 					if len(ranges) > 0 {
-						newLayers, err := newIterLayers(h.Ctx, h.Source, h.LanguageName, h.Highlighter, h.InjectionCallback, *newConfig, h.Layers[0].Depth+1, ranges)
+						newLayers, err := newIterLayers(h.Ctx, h.Source, h.LanguageName, h.Highlighter, h.InjectionCallback, *newConfig, layer.Depth+1, ranges)
 						if err != nil {
 							return nil, err
 						}
@@ -572,15 +577,19 @@ main:
 	}
 }
 
+func rotateLeft[T any](s []T, mid int) []T {
+	return append(s[mid:], s[:mid]...)
+}
+
 func (h *highlightIter) sortLayers() {
-	for len(h.Layers) > 1 {
+	for len(h.Layers) > 0 {
 		sortKey := h.Layers[0].sortKey()
 		if sortKey != nil {
 			var i int
 			for i+1 < len(h.Layers) {
 				nextOffset := h.Layers[i+1].sortKey()
 				if nextOffset != nil {
-					if nextOffset.position < sortKey.position {
+					if nextOffset.Less(*sortKey) {
 						i++
 						continue
 					}
@@ -588,13 +597,13 @@ func (h *highlightIter) sortLayers() {
 				break
 			}
 			if i > 0 {
-				h.Layers = append(h.Layers[:i], append([]*iterLayer{h.Layers[0]}, h.Layers[i:]...)...)
+				h.Layers = rotateLeft(h.Layers[:i], 1)
 			}
 			break
 		}
 		layer := h.Layers[0]
 		h.Layers = h.Layers[1:]
-		h.Highlighter.cursors = append(h.Highlighter.cursors, layer.Cursor)
+		h.Highlighter.pushCursor(layer.Cursor)
 	}
 }
 
@@ -605,7 +614,7 @@ func (h *highlightIter) insertLayer(layer *iterLayer) {
 		for i < len(h.Layers) {
 			sortKeyI := h.Layers[i].sortKey()
 			if sortKeyI != nil {
-				if sortKeyI.position > sortKey.position {
+				if sortKeyI.Greater(*sortKey) {
 					h.Layers = slices.Insert(h.Layers, i, layer)
 					return
 				}
@@ -650,10 +659,8 @@ func newIterLayers(
 			tree := highlighter.Parser.ParseCtx(ctx, source, nil)
 
 			cursor := highlighter.popCursor()
-			if cursor == nil {
-				cursor = tree_sitter.NewQueryCursor()
-			}
 
+			// Process combined injections.
 			if config.CombinedInjectionsQuery != nil {
 				injectionsByPatternIndex := make([]injectionItem, config.CombinedInjectionsQuery.PatternCount())
 
@@ -665,6 +672,7 @@ func newIterLayers(
 					}
 
 					languageName, contentNode, includeChildren := injectionForMatch(config, parentName, *match, source)
+
 					if languageName == "" {
 						injectionsByPatternIndex[match.PatternIndex].languageName = languageName
 					}
@@ -851,6 +859,10 @@ func intersectRanges(parentRanges []tree_sitter.Range, nodes []tree_sitter.Node,
 }
 
 func injectionForMatch(config Configuration, parentName string, match tree_sitter.QueryMatch, source []byte) (string, *tree_sitter.Node, bool) {
+	if config.InjectionContentCaptureIndex == nil || config.InjectionLanguageCaptureIndex == nil {
+		return "", nil, false
+	}
+
 	contentCaptureIndex := *config.InjectionContentCaptureIndex
 	languageCaptureIndex := *config.InjectionLanguageCaptureIndex
 
@@ -906,9 +918,41 @@ type iterLayer struct {
 }
 
 type sortKeyResult struct {
-	position uint
-	start    bool
-	depth    int
+	offset uint
+	start  bool
+	depth  int
+}
+
+func (k sortKeyResult) Less(other sortKeyResult) bool {
+	if k.offset < other.offset {
+		return true
+	}
+	if k.offset > other.offset {
+		return false
+	}
+	if !k.start && other.start {
+		return true
+	}
+	if k.start && !other.start {
+		return false
+	}
+	return k.depth < other.depth
+}
+
+func (k sortKeyResult) Greater(other sortKeyResult) bool {
+	if k.offset > other.offset {
+		return true
+	}
+	if k.offset < other.offset {
+		return false
+	}
+	if k.start && !other.start {
+		return true
+	}
+	if !k.start && other.start {
+		return false
+	}
+	return k.depth > other.depth
 }
 
 func (h *iterLayer) sortKey() *sortKeyResult {
@@ -931,28 +975,28 @@ func (h *iterLayer) sortKey() *sortKeyResult {
 	case nextStart != nil && nextEnd != nil:
 		if *nextStart < *nextEnd {
 			return &sortKeyResult{
-				position: *nextStart,
-				start:    true,
-				depth:    depth,
+				offset: *nextStart,
+				start:  true,
+				depth:  depth,
 			}
 		} else {
 			return &sortKeyResult{
-				position: *nextEnd,
-				start:    false,
-				depth:    depth,
+				offset: *nextEnd,
+				start:  false,
+				depth:  depth,
 			}
 		}
 	case nextStart != nil:
 		return &sortKeyResult{
-			position: *nextStart,
-			start:    true,
-			depth:    depth,
+			offset: *nextStart,
+			start:  true,
+			depth:  depth,
 		}
 	case nextEnd != nil:
 		return &sortKeyResult{
-			position: *nextEnd,
-			start:    false,
-			depth:    depth,
+			offset: *nextEnd,
+			start:  false,
+			depth:  depth,
 		}
 	default:
 		return nil
@@ -970,9 +1014,13 @@ type Highlighter struct {
 	cursors []*tree_sitter.QueryCursor
 }
 
+func (h *Highlighter) pushCursor(cursor *tree_sitter.QueryCursor) {
+	h.cursors = append(h.cursors, cursor)
+}
+
 func (h *Highlighter) popCursor() *tree_sitter.QueryCursor {
 	if len(h.cursors) == 0 {
-		return nil
+		return tree_sitter.NewQueryCursor()
 	}
 
 	cursor := h.cursors[len(h.cursors)-1]
@@ -986,7 +1034,20 @@ func (h *Highlighter) Highlight(
 	source []byte,
 	injectionCallback InjectionCallback,
 ) iter.Seq2[Event, error] {
-	layers, err := newIterLayers(ctx, source, "", h, injectionCallback, cfg, 0, nil)
+	layers, err := newIterLayers(ctx, source, "", h, injectionCallback, cfg, 0, []tree_sitter.Range{
+		{
+			StartByte: 0,
+			EndByte:   ^uint(0),
+			StartPoint: tree_sitter.Point{
+				Row:    0,
+				Column: 0,
+			},
+			EndPoint: tree_sitter.Point{
+				Row:    ^uint(0),
+				Column: ^uint(0),
+			},
+		},
+	})
 	if err != nil {
 		return func(yield func(Event, error) bool) {
 			yield(nil, err)

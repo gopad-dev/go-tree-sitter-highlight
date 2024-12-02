@@ -14,31 +14,28 @@ import (
 	"github.com/tree-sitter/go-tree-sitter"
 )
 
-const (
-	ResetStyle = "\x1b[m"
+const ResetStyle = "\x1b[0m"
 
-	WhiteStyle   = "\x1b[37m"
-	GreenStyle   = "\x1b[32m"
-	CyanStyle    = "\x1b[36m"
-	RedStyle     = "\x1b[31m"
-	MagentaStyle = "\x1b[35m"
-	YellowStyle  = "\x1b[33m"
-)
+func ColorStyle(color int) string {
+	if color == -1 {
+		return ""
+	}
+	return fmt.Sprintf("\x1b[38;5;%dm", color)
+}
 
-var theme = map[string]string{
-	"markup.heading":   MagentaStyle,
-	"markup.raw.block": CyanStyle,
-
-	"punctuation.special":   GreenStyle,
-	"punctuation.bracket":   WhiteStyle,
-	"punctuation.delimiter": WhiteStyle,
-
-	"attribute": YellowStyle,
-	"variable":  WhiteStyle,
-	"keyword":   MagentaStyle,
-	"string":    GreenStyle,
-	"property":  RedStyle,
-	"function":  CyanStyle,
+var theme = map[string]int{
+	"markup.heading":        14,
+	"markup.raw.block":      14,
+	"punctuation.bracket":   7,
+	"punctuation.special":   7,
+	"punctuation.delimiter": 15,
+	"variable":              15,
+	"function":              14,
+	"string":                10,
+	"attribute":             124,
+	"keyword":               13,
+	"comment":               245,
+	"property":              9,
 }
 
 func loadLanguage(name string, captureNames []string) *Configuration {
@@ -93,25 +90,29 @@ func TestHighlighter_Highlight(t *testing.T) {
 
 	highlighter := New()
 	events := highlighter.Highlight(context.Background(), *cfg, source, func(name string) *Configuration {
-		//return nil
 		return loadLanguage(name, captureNames)
 	})
 
-	styles := []string{WhiteStyle}
+	styles := []int{15}
 	for event, err := range events {
 		if err != nil {
 			log.Panicf("failed to highlight source: %v", err)
 		}
 
 		switch e := event.(type) {
-		case EventStart:
-			fmt.Printf("START: %s", captureNames[e.Highlight])
+		case EventInjectionStart:
+			fmt.Printf("INJECTION: %s", e.LanguageName)
+			styles = append(styles, 15)
+		case EventInjectionEnd:
+			styles = styles[:len(styles)-1]
+		case EventCaptureStart:
+			// fmt.Printf("START: %s", captureNames[e.Highlight])
 			styles = append(styles, theme[captureNames[e.Highlight]])
-		case EventEnd:
+		case EventCaptureEnd:
 			styles = styles[:len(styles)-1]
 		case EventSource:
 			style := styles[len(styles)-1]
-			print(style)
+			print(ColorStyle(style))
 			print(string(source[e.StartByte:e.EndByte]))
 			print(ResetStyle)
 		}

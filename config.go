@@ -194,17 +194,17 @@ type Configuration struct {
 	LocalRefCaptureIndex          *uint
 }
 
-// Get a slice containing all of the highlight names used in the configuration.
+// Names gets a slice containing all the highlight names used in the configuration.
 func (c *Configuration) Names() []string {
 	return c.Query.CaptureNames()
 }
 
-// Set the list of recognized highlight names.
+// Configure sets the list of recognized highlight names.
 //
 // Tree-sitter syntax-highlighting queries specify highlights in the form of dot-separated
 // highlight names like `punctuation.bracket` and `function.method.builtin`. Consumers of
 // these queries can choose to recognize highlights with different levels of specificity.
-// For example, the string `function.builtin` will match against `function.method.builtin`
+// For example, the string `function.builtin` will match against `function`
 // and `function.builtin.constructor`, but will not match `function.method`.
 //
 // When highlighting, results are returned as `Highlight` values, which contain the index
@@ -212,32 +212,25 @@ func (c *Configuration) Names() []string {
 func (c *Configuration) Configure(recognizedNames []string) {
 	highlightIndices := make([]*Highlight, len(c.Query.CaptureNames()))
 	for i, captureName := range c.Query.CaptureNames() {
-		captureParts := strings.Split(captureName, ".")
-
-		var bestIndex *Highlight
-		var bestMatchLen int
-		for j, recognizedName := range recognizedNames {
-			var matchLen int
-			matches := true
-			for _, part := range strings.Split(recognizedName, ".") {
-				matchLen++
-				if !slices.Contains(captureParts, part) {
-					matches = false
-					break
-				}
-			}
-			if matches && matchLen > bestMatchLen {
+		for {
+			j := slices.Index(recognizedNames, captureName)
+			if j != -1 {
 				index := Highlight(j)
-				bestIndex = &index
-				bestMatchLen = matchLen
+				highlightIndices[i] = &index
+				break
 			}
+
+			lastDot := strings.LastIndex(captureName, ".")
+			if lastDot == -1 {
+				break
+			}
+			captureName = captureName[:lastDot]
 		}
-		highlightIndices[i] = bestIndex
 	}
 	c.HighlightIndices = highlightIndices
 }
 
-// Return the list of this configuration's capture names that are neither present in the
+// NonconformantCaptureNames returns the list of this configuration's capture names that are neither present in the
 // list of predefined 'canonical' names nor start with an underscore (denoting 'private'
 // captures used as part of capture internals).
 func (c *Configuration) NonconformantCaptureNames(captureNames []string) []string {

@@ -2,6 +2,7 @@ package highlight
 
 import (
 	"context"
+	"log"
 	"slices"
 
 	"github.com/tree-sitter/go-tree-sitter"
@@ -23,6 +24,23 @@ type iterator struct {
 	Layers             []*iterLayer
 	NextEvent          Event
 	LastHighlightRange *highlightRange
+	LastLayer          *iterLayer
+}
+
+func (h *iterator) emitEvent(offset uint, event Event) (Event, error) {
+	var result Event
+	if h.ByteOffset < offset {
+		result = EventSource{
+			StartByte: h.ByteOffset,
+			EndByte:   offset,
+		}
+		h.ByteOffset = offset
+		h.NextEvent = event
+	} else {
+		result = event
+	}
+	h.sortLayers()
+	return result, nil
 }
 
 func (h *iterator) next() (Event, error) {
@@ -58,6 +76,14 @@ main:
 		// Get the next capture from whichever layer has the earliest highlight boundary.
 		var nextCaptureRange tree_sitter.Range
 		layer := h.Layers[0]
+		if layer != h.LastLayer {
+			lastLayer := h.LastLayer
+			h.LastLayer = layer
+			if lastLayer != nil {
+				log.Println("LAYER END", lastLayer.Config.LanguageName)
+			}
+			log.Println("LAYER START", layer.Config.LanguageName)
+		}
 
 		if nextMatch, captureIndex, ok := layer.Captures.Peek(); ok {
 			nextCapture := nextMatch.Captures[captureIndex]
@@ -70,7 +96,7 @@ main:
 				endByte := layer.HighlightEndStack[len(layer.HighlightEndStack)-1]
 				if endByte <= nextCaptureRange.StartByte {
 					layer.HighlightEndStack = layer.HighlightEndStack[:len(layer.HighlightEndStack)-1]
-					return h.emitEvent(endByte, EventEnd{})
+					return h.emitEvent(endByte, EventCaptureEnd{})
 				}
 			}
 		} else {
@@ -79,7 +105,7 @@ main:
 			if len(layer.HighlightEndStack) > 0 {
 				endByte := layer.HighlightEndStack[len(layer.HighlightEndStack)-1]
 				layer.HighlightEndStack = layer.HighlightEndStack[:len(layer.HighlightEndStack)-1]
-				return h.emitEvent(endByte, EventEnd{})
+				return h.emitEvent(endByte, EventCaptureEnd{})
 			}
 			return h.emitEvent(uint(len(h.Source)), nil)
 		}
@@ -264,30 +290,13 @@ main:
 				depth: layer.Depth,
 			}
 			layer.HighlightEndStack = append(layer.HighlightEndStack, nextCaptureRange.EndByte)
-			return h.emitEvent(nextCaptureRange.StartByte, EventStart{
-				Highlight:    *highlight,
-				LanguageName: layer.Config.LanguageName,
+			return h.emitEvent(nextCaptureRange.StartByte, EventCaptureStart{
+				Highlight: *highlight,
 			})
 		}
 
 		h.sortLayers()
 	}
-}
-
-func (h *iterator) emitEvent(offset uint, event Event) (Event, error) {
-	var result Event
-	if h.ByteOffset < offset {
-		result = EventSource{
-			StartByte: h.ByteOffset,
-			EndByte:   offset,
-		}
-		h.ByteOffset = offset
-		h.NextEvent = event
-	} else {
-		result = event
-	}
-	h.sortLayers()
-	return result, nil
 }
 
 func (h *iterator) sortLayers() {

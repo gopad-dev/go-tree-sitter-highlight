@@ -27,20 +27,31 @@ type EventSource struct {
 
 func (EventSource) highlightEvent() {}
 
-// EventStart is emitted when a new highlight region starts.
-type EventStart struct {
-	// Highlight is the capture name of the highlight.
-	Highlight Highlight
-	// LanguageName is the name of the language that the highlight belongs to.
+// EventInjectionStart is emitted when a language injection starts.
+type EventInjectionStart struct {
+	// LanguageName is the name of the language that is being injected.
 	LanguageName string
 }
 
-func (EventStart) highlightEvent() {}
+func (EventInjectionStart) highlightEvent() {}
 
-// EventEnd is emitted when a highlight region ends.
-type EventEnd struct{}
+// EventInjectionEnd is emitted when a language injection ends.
+type EventInjectionEnd struct{}
 
-func (EventEnd) highlightEvent() {}
+func (EventInjectionEnd) highlightEvent() {}
+
+// EventCaptureStart is emitted when a highlight region starts.
+type EventCaptureStart struct {
+	// Highlight is the capture name of the highlight.
+	Highlight Highlight
+}
+
+func (EventCaptureStart) highlightEvent() {}
+
+// EventCaptureEnd is emitted when a highlight region ends.
+type EventCaptureEnd struct{}
+
+func (EventCaptureEnd) highlightEvent() {}
 
 // InjectionCallback is called when a language injection is found to load the configuration for the injected language.
 type InjectionCallback func(name string) *Configuration

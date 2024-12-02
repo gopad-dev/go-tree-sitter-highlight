@@ -2,7 +2,6 @@ package highlight
 
 import (
 	"context"
-	"log"
 	"slices"
 
 	"github.com/tree-sitter/go-tree-sitter"
@@ -22,12 +21,12 @@ type iterator struct {
 	Highlighter        *Highlighter
 	InjectionCallback  InjectionCallback
 	Layers             []*iterLayer
-	NextEvent          Event
+	NextEvents         []Event
 	LastHighlightRange *highlightRange
 	LastLayer          *iterLayer
 }
 
-func (h *iterator) emitEvent(offset uint, event Event) (Event, error) {
+func (h *iterator) emitEvents(offset uint, events ...Event) (Event, error) {
 	var result Event
 	if h.ByteOffset < offset {
 		result = EventSource{
@@ -35,9 +34,12 @@ func (h *iterator) emitEvent(offset uint, event Event) (Event, error) {
 			EndByte:   offset,
 		}
 		h.ByteOffset = offset
-		h.NextEvent = event
+		h.NextEvents = append(h.NextEvents, events...)
 	} else {
-		result = event
+		if len(events) > 1 {
+			h.NextEvents = append(h.NextEvents, events[1:]...)
+		}
+		result = events[0]
 	}
 	h.sortLayers()
 	return result, nil
@@ -46,9 +48,9 @@ func (h *iterator) emitEvent(offset uint, event Event) (Event, error) {
 func (h *iterator) next() (Event, error) {
 main:
 	for {
-		if h.NextEvent != nil {
-			event := h.NextEvent
-			h.NextEvent = nil
+		if len(h.NextEvents) > 0 {
+			event := h.NextEvents[0]
+			h.NextEvents = h.NextEvents[1:]
 			return event, nil
 		}
 
@@ -74,17 +76,20 @@ main:
 		}
 
 		// Get the next capture from whichever layer has the earliest highlight boundary.
-		var nextCaptureRange tree_sitter.Range
 		layer := h.Layers[0]
 		if layer != h.LastLayer {
-			lastLayer := h.LastLayer
-			h.LastLayer = layer
-			if lastLayer != nil {
-				log.Println("LAYER END", lastLayer.Config.LanguageName)
+			var events []Event
+			if h.LastLayer != nil {
+				events = append(events, EventLayerEnd{})
 			}
-			log.Println("LAYER START", layer.Config.LanguageName)
+			h.LastLayer = layer
+
+			return h.emitEvents(h.ByteOffset, append(events, EventLayerStart{
+				LanguageName: layer.Config.LanguageName,
+			})...)
 		}
 
+		var nextCaptureRange tree_sitter.Range
 		if nextMatch, captureIndex, ok := layer.Captures.Peek(); ok {
 			nextCapture := nextMatch.Captures[captureIndex]
 			nextCaptureRange = nextCapture.Node.Range()
@@ -96,7 +101,7 @@ main:
 				endByte := layer.HighlightEndStack[len(layer.HighlightEndStack)-1]
 				if endByte <= nextCaptureRange.StartByte {
 					layer.HighlightEndStack = layer.HighlightEndStack[:len(layer.HighlightEndStack)-1]
-					return h.emitEvent(endByte, EventCaptureEnd{})
+					return h.emitEvents(endByte, EventCaptureEnd{})
 				}
 			}
 		} else {
@@ -105,9 +110,9 @@ main:
 			if len(layer.HighlightEndStack) > 0 {
 				endByte := layer.HighlightEndStack[len(layer.HighlightEndStack)-1]
 				layer.HighlightEndStack = layer.HighlightEndStack[:len(layer.HighlightEndStack)-1]
-				return h.emitEvent(endByte, EventCaptureEnd{})
+				return h.emitEvents(endByte, EventCaptureEnd{})
 			}
-			return h.emitEvent(uint(len(h.Source)), nil)
+			return h.emitEvents(uint(len(h.Source)), nil)
 		}
 
 		match, captureIndex, _ := layer.Captures.Next()
@@ -290,7 +295,7 @@ main:
 				depth: layer.Depth,
 			}
 			layer.HighlightEndStack = append(layer.HighlightEndStack, nextCaptureRange.EndByte)
-			return h.emitEvent(nextCaptureRange.StartByte, EventCaptureStart{
+			return h.emitEvents(nextCaptureRange.StartByte, EventCaptureStart{
 				Highlight: *highlight,
 			})
 		}

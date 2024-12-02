@@ -12,8 +12,10 @@ type Highlight uint
 
 // Event is an interface that represents a highlight event.
 // Possible implementations are:
-// - [EventStart]
-// - [EventEnd]
+// - [EventLayerStart]
+// - [EventLayerEnd]
+// - [EventCaptureStart]
+// - [EventCaptureEnd]
 // - [EventSource]
 type Event interface {
 	highlightEvent()
@@ -27,18 +29,18 @@ type EventSource struct {
 
 func (EventSource) highlightEvent() {}
 
-// EventInjectionStart is emitted when a language injection starts.
-type EventInjectionStart struct {
+// EventLayerStart is emitted when a language injection starts.
+type EventLayerStart struct {
 	// LanguageName is the name of the language that is being injected.
 	LanguageName string
 }
 
-func (EventInjectionStart) highlightEvent() {}
+func (EventLayerStart) highlightEvent() {}
 
-// EventInjectionEnd is emitted when a language injection ends.
-type EventInjectionEnd struct{}
+// EventLayerEnd is emitted when a language injection ends.
+type EventLayerEnd struct{}
 
-func (EventInjectionEnd) highlightEvent() {}
+func (EventLayerEnd) highlightEvent() {}
 
 // EventCaptureStart is emitted when a highlight region starts.
 type EventCaptureStart struct {
@@ -115,7 +117,7 @@ func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source [
 		Highlighter:        h,
 		InjectionCallback:  injectionCallback,
 		Layers:             layers,
-		NextEvent:          nil,
+		NextEvents:         nil,
 		LastHighlightRange: nil,
 	}
 	i.sortLayers()

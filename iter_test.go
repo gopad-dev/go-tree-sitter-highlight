@@ -26,9 +26,9 @@ func TestRotateLeft(t *testing.T) {
 			name:     "rotate sub slice left by 1",
 			args:     []string{"a", "b", "c", "d", "e", "f"},
 			from:     1,
-			to:       5,
+			to:       6,
 			mid:      1,
-			expected: []string{"a", "c", "d", "e", "b", "f"},
+			expected: []string{"a", "c", "d", "e", "f", "b"},
 		},
 	}
 

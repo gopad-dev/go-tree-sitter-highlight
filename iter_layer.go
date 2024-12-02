@@ -143,7 +143,10 @@ func newIterLayers(
 				}
 			}
 
-			queryCaptures := cursor.Captures(config.Query, tree.RootNode(), source)
+			queryCaptures := newQueryCapturesIter(cursor.Captures(config.Query, tree.RootNode(), source))
+			if _, _, ok := queryCaptures.Peek(); !ok {
+				continue
+			}
 
 			result = append(result, &iterLayer{
 				Tree:              tree,
@@ -168,7 +171,7 @@ func newIterLayers(
 						LocalDefs: nil,
 					},
 				},
-				Captures: newQueryCapturesIter(queryCaptures),
+				Captures: queryCaptures,
 				Ranges:   ranges,
 				Depth:    depth,
 			})

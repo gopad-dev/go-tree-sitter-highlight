@@ -93,20 +93,23 @@ func TestHighlighter_Highlight(t *testing.T) {
 		return loadLanguage(name, captureNames)
 	})
 
-	styles := []int{15}
+	var (
+		styles    []int
+		languages []string
+	)
 	for event, err := range events {
 		if err != nil {
 			log.Panicf("failed to highlight source: %v", err)
 		}
 
 		switch e := event.(type) {
-		case EventInjectionStart:
-			fmt.Printf("INJECTION: %s", e.LanguageName)
+		case EventLayerStart:
 			styles = append(styles, 15)
-		case EventInjectionEnd:
+			languages = append(languages, e.LanguageName)
+		case EventLayerEnd:
 			styles = styles[:len(styles)-1]
+			languages = languages[:len(languages)-1]
 		case EventCaptureStart:
-			// fmt.Printf("START: %s", captureNames[e.Highlight])
 			styles = append(styles, theme[captureNames[e.Highlight]])
 		case EventCaptureEnd:
 			styles = styles[:len(styles)-1]

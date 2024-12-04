@@ -1,7 +1,9 @@
 package highlight
 
 import (
+	"bytes"
 	"fmt"
+	"html"
 	"io"
 	"iter"
 	"slices"
@@ -20,19 +22,37 @@ var (
 // This can be anything from classes, ids, or inline styles.
 type AttributeCallback func(h Highlight, languageName string) []byte
 
+type HTMLTheme struct {
+	BackgroundColor             string
+	Color                       string
+	LineNumbersBackgroundColor  string
+	LineNumberColor             string
+	SelectedLineBackgroundColor string
+}
+
 // NewHTMLRender returns a new HTMLRender.
 func NewHTMLRender() *HTMLRender {
 	return &HTMLRender{
 		ClassNamePrefix: "hl-",
+		LineNumbers:     true,
+		Theme: HTMLTheme{
+			BackgroundColor:             "#212122",
+			Color:                       "#f8f8f2",
+			LineNumbersBackgroundColor:  "#2b2b2b",
+			LineNumberColor:             "#8b8b8b",
+			SelectedLineBackgroundColor: "#43494a",
+		},
 	}
 }
 
 // HTMLRender is a renderer that outputs HTML.
 type HTMLRender struct {
 	ClassNamePrefix string
+	LineNumbers     bool
+	Theme           HTMLTheme
 }
 
-func (r *HTMLRender) addText(w io.Writer, source []byte, hs []Highlight, languages []string, callback AttributeCallback) error {
+func (r *HTMLRender) addText(w io.Writer, line int, source []byte, hs []Highlight, languages []string, callback AttributeCallback) error {
 	for len(source) > 0 {
 		c, l := utf8.DecodeRune(source)
 		source = source[l:]
@@ -48,7 +68,17 @@ func (r *HTMLRender) addText(w io.Writer, source []byte, hs []Highlight, languag
 				}
 			}
 
+			if _, err := w.Write([]byte("</span>")); err != nil {
+				return err
+			}
+
 			if _, err := w.Write([]byte(string(c))); err != nil {
+				return err
+			}
+
+			line++
+
+			if _, err := fmt.Fprintf(w, "<span id=\"L%d\" class=\"%sl\">", line, r.ClassNamePrefix); err != nil {
 				return err
 			}
 
@@ -123,13 +153,24 @@ func (r *HTMLRender) endHighlight(w io.Writer) error {
 	return err
 }
 
-// Render renders the code code to the writer with spans for each highlight capture.
+// Render renders the code to the writer with spans for each highlight capture.
 // The [AttributeCallback] is used to generate the classes or inline styles for each span.
 func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source []byte, callback AttributeCallback) error {
 	var (
 		highlights []Highlight
 		languages  []string
+		line       int
 	)
+
+	line++
+	if _, err := fmt.Fprintf(w, "<span id=\"L%d\" class=\"%sl\">", line, r.ClassNamePrefix); err != nil {
+		return err
+	}
+
+	defer func() {
+		_, _ = w.Write([]byte("</span>"))
+	}()
+
 	for event, err := range events {
 		if err != nil {
 			return fmt.Errorf("error while rendering: %w", err)
@@ -154,19 +195,59 @@ func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source 
 				return fmt.Errorf("error while ending highlight: %w", err)
 			}
 		case EventSource:
-			if err = r.addText(w, source[e.StartByte:e.EndByte], highlights, languages, callback); err != nil {
+			text := source[e.StartByte:e.EndByte]
+
+			if err = r.addText(w, line, text, highlights, languages, callback); err != nil {
 				return fmt.Errorf("error while writing source: %w", err)
 			}
+
+			line += bytes.Count(text, []byte("\n"))
 		}
 	}
 
 	return nil
 }
 
+func (r *HTMLRender) RenderLineNumbers(w io.Writer, lineCount int) error {
+	if _, err := fmt.Fprintf(w, "<div class=\"%slns\">", r.ClassNamePrefix); err != nil {
+		return err
+	}
+
+	for i := range lineCount {
+		if _, err := fmt.Fprintf(w, "<a class=\"%sln\" href=\"#L%d\">%d</a>\n", r.ClassNamePrefix, i+1, i+1); err != nil {
+			return err
+		}
+	}
+
+	_, err := fmt.Fprintf(w, "</div>")
+	return err
+}
+
 // RenderCSS renders the css classes for a theme to the writer.
 func (r *HTMLRender) RenderCSS(w io.Writer, theme map[string]string) error {
+	if r.LineNumbers {
+		if _, err := fmt.Fprintf(w, ".%shl{background-color:%s;color:%s;}"+
+			".%slns {float: left;padding-left:0.5rem;padding-right: 0.5rem;background-color:%s;color:%s;}\n"+
+			".%scode {display:inline-block;}\n"+
+			".%sln {display:inline-block;text-align:right;text-decoration:none;user-select:none;color:unset;}\n"+
+			".%sln:focus {outline: none;}\n"+
+			".%sl {display:inline-block;width:100%%;padding-left:0.5rem;padding-right:0.5rem;}\n"+
+			".%sl:before {content:\"\\200b\";user-select:none;}\n"+
+			".%sl:target {background-color:%s;}\n",
+			r.ClassNamePrefix, r.Theme.BackgroundColor, r.Theme.Color,
+			r.ClassNamePrefix, r.Theme.LineNumbersBackgroundColor, r.Theme.LineNumberColor,
+			r.ClassNamePrefix, r.ClassNamePrefix,
+			r.ClassNamePrefix,
+			r.ClassNamePrefix,
+			r.ClassNamePrefix,
+			r.ClassNamePrefix, r.Theme.SelectedLineBackgroundColor,
+		); err != nil {
+			return err
+		}
+	}
+
 	for name, style := range theme {
-		_, err := fmt.Fprintf(w, ".%s%s{%s}", r.ClassNamePrefix, name, style)
+		_, err := fmt.Fprintf(w, ".%s%s {%s}\n", r.ClassNamePrefix, name, style)
 		if err != nil {
 			return err
 		}
@@ -188,13 +269,7 @@ func (r *HTMLRender) themeAttributeCallback(captureNames []string) AttributeCall
 
 // RenderDocument renders a full HTML document with the code and theme embedded.
 func (r *HTMLRender) RenderDocument(w io.Writer, events iter.Seq2[Event, error], title string, source []byte, captureNames []string, theme map[string]string) error {
-	if _, err := fmt.Fprintf(w, `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>%s</title>
-<style>
-`, title); err != nil {
+	if _, err := fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", html.EscapeString(title)); err != nil {
 		return err
 	}
 
@@ -202,11 +277,17 @@ func (r *HTMLRender) RenderDocument(w io.Writer, events iter.Seq2[Event, error],
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, `</style>
-</head>
-<body>
-<pre><code>
-`); err != nil {
+	if _, err := fmt.Fprintf(w, "</style>\n</head>\n<body>\n<pre class=\"%shl\">\n", r.ClassNamePrefix); err != nil {
+		return err
+	}
+
+	if r.LineNumbers {
+		if err := r.RenderLineNumbers(w, bytes.Count(source, []byte("\n"))+1); err != nil {
+			return err
+		}
+	}
+
+	if _, err := fmt.Fprintf(w, "<code class=\"%scode\">", r.ClassNamePrefix); err != nil {
 		return err
 	}
 
@@ -214,9 +295,6 @@ func (r *HTMLRender) RenderDocument(w io.Writer, events iter.Seq2[Event, error],
 		return err
 	}
 
-	_, err := fmt.Fprintf(w, `</code></pre>
-</body>
-</html>
-`)
+	_, err := fmt.Fprintf(w, "</code>\n</pre>\n</body>\n</html>\n")
 	return err
 }

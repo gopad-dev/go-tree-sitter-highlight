@@ -2,37 +2,24 @@ package highlight
 
 import (
 	"context"
-	"fmt"
 	"os"
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tree-sitter/go-tree-sitter"
 	"github.com/tree-sitter/tree-sitter-go/bindings/go"
 )
 
 var cssTheme = map[string]string{
-	"variable": "color: #FEFEF8;",
+	"variable": "color: #DEAE60;",
 	"function": "color: #73FBF1;",
 	"string":   "color: #B8E466;",
 	"keyword":  "color: #A578EA;",
 	"comment":  "color: #8A8A8A;",
 }
 
-func attributeCallback(captureNames []string) AttributeCallback {
-	return func(h Highlight, languageName string) []byte {
-		if h == DefaultHighlight {
-			return nil
-		}
-
-		return []byte(`class="hl-` + captureNames[h] + `"`)
-	}
-}
-
 func TestHTMLRender_Render(t *testing.T) {
-	// Get the capture names from the theme
 	captureNames := make([]string, 0, len(theme))
 	for name := range theme {
 		captureNames = append(captureNames, name)
@@ -67,30 +54,6 @@ func TestHTMLRender_Render(t *testing.T) {
 	}()
 
 	htmlRender := NewHTMLRender()
-	_, err = fmt.Fprintf(f, `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8">
-<title>Test</title>
-<style>`)
-	require.NoError(t, err)
-
-	err = htmlRender.RenderCSS(f, cssTheme)
-	require.NoError(t, err)
-
-	_, err = fmt.Fprintf(f, `</style>
-</head>
-<body>
-<pre><code>
-`)
-	require.NoError(t, err)
-
-	err = htmlRender.Render(f, events, source, attributeCallback(captureNames))
-	assert.NoError(t, err)
-
-	_, err = fmt.Fprintf(f, `</code></pre>
-</body>
-</html>
-`)
+	err = htmlRender.RenderDocument(f, events, "test.go", source, captureNames, cssTheme)
 	require.NoError(t, err)
 }

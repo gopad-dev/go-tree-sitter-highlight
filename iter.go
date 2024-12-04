@@ -61,8 +61,31 @@ main:
 		default:
 		}
 
+		// Get the next capture from whichever layer has the earliest highlight boundary.
+		var layer *iterLayer
+		if len(h.Layers) > 0 {
+			layer = h.Layers[0]
+		}
+
+		if layer != h.LastLayer {
+			if h.LastLayer != nil {
+				for len(h.LastLayer.FoldStack) > 0 {
+					h.LastLayer.FoldStack = h.LastLayer.FoldStack[:len(h.LastLayer.FoldStack)-1]
+					h.NextEvents = append(h.NextEvents, EventFoldEnd{})
+				}
+				h.NextEvents = append(h.NextEvents, EventLayerEnd{})
+			}
+			h.LastLayer = layer
+
+			if layer != nil {
+				h.NextEvents = append(h.NextEvents, EventLayerStart{
+					LanguageName: layer.Config.LanguageName,
+				})
+			}
+		}
+
 		// If none of the layers have any more highlight boundaries, terminate.
-		if len(h.Layers) == 0 {
+		if layer == nil {
 			if h.ByteOffset < uint(len(h.Source)) {
 				event := EventSource{
 					StartByte: h.ByteOffset,
@@ -73,20 +96,6 @@ main:
 			}
 
 			return nil, nil
-		}
-
-		// Get the next capture from whichever layer has the earliest highlight boundary.
-		layer := h.Layers[0]
-		if layer != h.LastLayer {
-			var events []Event
-			if h.LastLayer != nil {
-				events = append(events, EventLayerEnd{})
-			}
-			h.LastLayer = layer
-
-			return h.emitEvents(h.ByteOffset, append(events, EventLayerStart{
-				LanguageName: layer.Config.LanguageName,
-			})...)
 		}
 
 		var nextCaptureRange tree_sitter.Range
@@ -102,6 +111,15 @@ main:
 				if endByte <= nextCaptureRange.StartByte {
 					layer.HighlightEndStack = layer.HighlightEndStack[:len(layer.HighlightEndStack)-1]
 					return h.emitEvents(endByte, EventCaptureEnd{})
+				}
+			}
+
+			// Remove from the fold stack any folds that have already ended.
+			if len(layer.FoldStack) > 0 {
+				endByte := layer.FoldStack[len(layer.FoldStack)-1].Range.EndByte
+				if endByte <= nextCaptureRange.StartByte {
+					layer.FoldStack = layer.FoldStack[:len(layer.FoldStack)-1]
+					return h.emitEvents(endByte, EventFoldEnd{})
 				}
 			}
 		} else {
@@ -157,7 +175,7 @@ main:
 		// local variable info.
 		var referenceHighlight *Highlight
 		var definitionHighlight *Highlight
-		for match.PatternIndex < layer.Config.HighlightsPatternIndex {
+		for match.PatternIndex < layer.Config.FoldsPatternIndex {
 			// If the node represents a local scope, push a new local scope onto
 			// the scope stack.
 			if layer.Config.LocalScopeCaptureIndex != nil && uint(capture.Index) == *layer.Config.LocalScopeCaptureIndex {
@@ -219,6 +237,33 @@ main:
 						}
 					}
 				}
+			}
+
+			// Continue processing any additional matches for the same node.
+			if nextMatch, nextCaptureIndex, ok := layer.Captures.Peek(); ok {
+				nextCapture := nextMatch.Captures[nextCaptureIndex]
+				if nextCapture.Node.Equals(capture.Node) {
+					capture = nextCapture
+					match, _, _ = layer.Captures.Next()
+					continue
+				}
+			}
+
+			h.sortLayers()
+			continue main
+		}
+
+		// If this capture is for tracking folds, then process the fold info.
+		for match.PatternIndex < layer.Config.HighlightsPatternIndex {
+			if layer.Config.FoldCaptureIndex != nil && uint(capture.Index) == *layer.Config.FoldCaptureIndex {
+				fold := codeFold{
+					Range: nextCaptureRange,
+				}
+
+				layer.FoldStack = append(layer.FoldStack, fold)
+				return h.emitEvents(nextCaptureRange.StartByte, EventFoldStart{
+					Range: nextCaptureRange,
+				})
 			}
 
 			// Continue processing any additional matches for the same node.

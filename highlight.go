@@ -44,6 +44,16 @@ type EventLayerEnd struct{}
 
 func (EventLayerEnd) highlightEvent() {}
 
+type EventFoldStart struct {
+	Range tree_sitter.Range
+}
+
+func (EventFoldStart) highlightEvent() {}
+
+type EventFoldEnd struct{}
+
+func (EventFoldEnd) highlightEvent() {}
+
 // EventCaptureStart is emitted when a highlight region starts.
 type EventCaptureStart struct {
 	// Highlight is the capture name of the highlight.

@@ -66,11 +66,6 @@ func (k sortKey) LessThan(other sortKey) bool {
 	return k.Compare(other) == -1
 }
 
-type _queryCapture struct {
-	Match tree_sitter.QueryMatch
-	Index uint
-}
-
 type localDef struct {
 	Name      string
 	Range     tree_sitter.Range
@@ -81,6 +76,10 @@ type localScope struct {
 	Inherits  bool
 	Range     tree_sitter.Range
 	LocalDefs []localDef
+}
+
+type codeFold struct {
+	Range tree_sitter.Range
 }
 
 func newIterLayers(
@@ -198,6 +197,7 @@ type iterLayer struct {
 	Config            Configuration
 	HighlightEndStack []uint
 	ScopeStack        []localScope
+	FoldStack         []codeFold
 	Captures          *queryCapturesIter
 	Ranges            []tree_sitter.Range
 	Depth             uint

@@ -23,6 +23,7 @@ var (
 type AttributeCallback func(h Highlight, languageName string) []byte
 
 type HTMLTheme struct {
+	TabWidth                    int
 	BackgroundColor             string
 	Color                       string
 	LineNumbersBackgroundColor  string
@@ -208,35 +209,28 @@ func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source 
 	return nil
 }
 
-func (r *HTMLRender) RenderLineNumbers(w io.Writer, lineCount int) error {
-	if _, err := fmt.Fprintf(w, "<div class=\"%slns\">", r.ClassNamePrefix); err != nil {
-		return err
-	}
-
-	for i := range lineCount {
-		if _, err := fmt.Fprintf(w, "<a class=\"%sln\" href=\"#L%d\">%d</a>\n", r.ClassNamePrefix, i+1, i+1); err != nil {
-			return err
-		}
-	}
-
-	_, err := fmt.Fprintf(w, "</div>")
-	return err
-}
-
 // RenderCSS renders the css classes for a theme to the writer.
 func (r *HTMLRender) RenderCSS(w io.Writer, theme map[string]string) error {
 	if r.LineNumbers {
-		if _, err := fmt.Fprintf(w, ".%shl{background-color:%s;color:%s;}"+
+		if _, err := fmt.Fprintf(w, ".%shl{background-color:%s;color:%s;tab-width:%d;}\n"+
 			".%slns {float: left;padding-left:0.5rem;padding-right: 0.5rem;background-color:%s;color:%s;}\n"+
 			".%scode {display:inline-block;}\n"+
+			".%scode summary {list-style-type: none;}\n"+
+			".%scode summary::before {content:\"🞂\";position:absolute;}\n"+
+			".%scode details[open] summary::before{content:\"🞃\";}\n"+
 			".%sln {display:inline-block;text-align:right;text-decoration:none;user-select:none;color:unset;}\n"+
+			".%sln:hover {text-decoration:underline;}\n"+
 			".%sln:focus {outline: none;}\n"+
 			".%sl {display:inline-block;width:100%%;padding-left:0.5rem;padding-right:0.5rem;}\n"+
 			".%sl:before {content:\"\\200b\";user-select:none;}\n"+
 			".%sl:target {background-color:%s;}\n",
-			r.ClassNamePrefix, r.Theme.BackgroundColor, r.Theme.Color,
+			r.ClassNamePrefix, r.Theme.BackgroundColor, r.Theme.Color, r.Theme.TabWidth,
 			r.ClassNamePrefix, r.Theme.LineNumbersBackgroundColor, r.Theme.LineNumberColor,
 			r.ClassNamePrefix, r.ClassNamePrefix,
+			r.ClassNamePrefix,
+			r.ClassNamePrefix,
+			r.ClassNamePrefix,
+			r.ClassNamePrefix,
 			r.ClassNamePrefix,
 			r.ClassNamePrefix,
 			r.ClassNamePrefix,
@@ -254,6 +248,21 @@ func (r *HTMLRender) RenderCSS(w io.Writer, theme map[string]string) error {
 	}
 
 	return nil
+}
+
+func (r *HTMLRender) RenderLineNumbers(w io.Writer, lineCount int) error {
+	if _, err := fmt.Fprintf(w, "<div class=\"%slns\">", r.ClassNamePrefix); err != nil {
+		return err
+	}
+
+	for i := range lineCount {
+		if _, err := fmt.Fprintf(w, "<a class=\"%sln\" href=\"#L%d\">%d</a>\n", r.ClassNamePrefix, i+1, i+1); err != nil {
+			return err
+		}
+	}
+
+	_, err := fmt.Fprintf(w, "</div>")
+	return err
 }
 
 func (r *HTMLRender) themeAttributeCallback(captureNames []string) AttributeCallback {
@@ -277,7 +286,7 @@ func (r *HTMLRender) RenderDocument(w io.Writer, events iter.Seq2[Event, error],
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "</style>\n</head>\n<body>\n<pre class=\"%shl\">\n", r.ClassNamePrefix); err != nil {
+	if _, err := fmt.Fprintf(w, "</style>\n</head>\n<body>\n<pre class=\"%shl\">", r.ClassNamePrefix); err != nil {
 		return err
 	}
 
@@ -295,6 +304,6 @@ func (r *HTMLRender) RenderDocument(w io.Writer, events iter.Seq2[Event, error],
 		return err
 	}
 
-	_, err := fmt.Fprintf(w, "</code>\n</pre>\n</body>\n</html>\n")
+	_, err := fmt.Fprintf(w, "</code></pre>\n</body>\n</html>\n")
 	return err
 }

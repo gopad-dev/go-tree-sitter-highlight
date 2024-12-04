@@ -76,10 +76,12 @@ var StandardCaptureNames = []string{
 }
 
 // NewConfiguration creates a new highlight configuration from a [tree_sitter.Language] and a set of queries.
-func NewConfiguration(language *tree_sitter.Language, languageName string, highlightsQuery []byte, injectionQuery []byte, localsQuery []byte) (*Configuration, error) {
+func NewConfiguration(language *tree_sitter.Language, languageName string, highlightsQuery []byte, injectionQuery []byte, localsQuery []byte, foldsQuery []byte) (*Configuration, error) {
 	querySource := injectionQuery
 	localsQueryOffset := uint(len(querySource))
 	querySource = append(querySource, localsQuery...)
+	foldsQueryOffset := uint(len(querySource))
+	querySource = append(querySource, foldsQuery...)
 	highlightsQueryOffset := uint(len(querySource))
 	querySource = append(querySource, highlightsQuery...)
 
@@ -89,6 +91,7 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 	}
 
 	localsPatternIndex := uint(0)
+	foldsPatternIndex := uint(0)
 	highlightsPatternIndex := uint(0)
 	for i := range query.PatternCount() {
 		patternOffset := query.StartByteForPattern(i)
@@ -98,6 +101,9 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 			}
 			if patternOffset < localsQueryOffset {
 				localsPatternIndex++
+			}
+			if patternOffset < foldsQueryOffset {
+				foldsPatternIndex++
 			}
 		}
 	}
@@ -133,6 +139,7 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 	}
 
 	var (
+		foldCaptureIndex              *uint
 		injectionContentCaptureIndex  *uint
 		injectionLanguageCaptureIndex *uint
 		localDefCaptureIndex          *uint
@@ -144,6 +151,8 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 	for i, captureName := range query.CaptureNames() {
 		ui := uint(i)
 		switch captureName {
+		case "fold":
+			foldCaptureIndex = &ui
 		case "injection.content":
 			injectionContentCaptureIndex = &ui
 		case "injection.language":
@@ -166,9 +175,11 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 		Query:                         query,
 		CombinedInjectionsQuery:       combinedInjectionsQuery,
 		LocalsPatternIndex:            localsPatternIndex,
+		FoldsPatternIndex:             foldsPatternIndex,
 		HighlightsPatternIndex:        highlightsPatternIndex,
 		HighlightIndices:              highlightIndices,
 		NonLocalVariablePatterns:      nonLocalVariablePatterns,
+		FoldCaptureIndex:              foldCaptureIndex,
 		InjectionContentCaptureIndex:  injectionContentCaptureIndex,
 		InjectionLanguageCaptureIndex: injectionLanguageCaptureIndex,
 		LocalScopeCaptureIndex:        localScopeCaptureIndex,
@@ -184,9 +195,11 @@ type Configuration struct {
 	Query                         *tree_sitter.Query
 	CombinedInjectionsQuery       *tree_sitter.Query
 	LocalsPatternIndex            uint
+	FoldsPatternIndex             uint
 	HighlightsPatternIndex        uint
 	HighlightIndices              []*Highlight
 	NonLocalVariablePatterns      []bool
+	FoldCaptureIndex              *uint
 	InjectionContentCaptureIndex  *uint
 	InjectionLanguageCaptureIndex *uint
 	LocalScopeCaptureIndex        *uint

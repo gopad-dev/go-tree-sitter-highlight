@@ -33,7 +33,10 @@ func TestHTMLRender_Render(t *testing.T) {
 	highlightsQuery, err := os.ReadFile("testdata/highlights.scm")
 	require.NoError(t, err)
 
-	cfg, err := NewConfiguration(language, "go", highlightsQuery, nil, nil)
+	foldsQuery, err := os.ReadFile("testdata/folds.scm")
+	require.NoError(t, err)
+
+	cfg, err := NewConfiguration(language, "go", highlightsQuery, nil, nil, foldsQuery)
 	require.NoError(t, err)
 
 	cfg.Configure(captureNames)

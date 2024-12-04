@@ -47,7 +47,10 @@ func TestHighlighter_Highlight(t *testing.T) {
 	highlightsQuery, err := os.ReadFile("testdata/highlights.scm")
 	require.NoError(t, err)
 
-	cfg, err := NewConfiguration(language, "go", highlightsQuery, nil, nil)
+	foldsQuery, err := os.ReadFile("testdata/folds.scm")
+	require.NoError(t, err)
+
+	cfg, err := NewConfiguration(language, "go", highlightsQuery, nil, nil, foldsQuery)
 	require.NoError(t, err)
 
 	cfg.Configure(captureNames)
@@ -68,9 +71,15 @@ func TestHighlighter_Highlight(t *testing.T) {
 		// New language layer found, push a new style (white) so we don't inherit the previous style as fallback
 		case EventLayerStart:
 			styles = append(styles, 15)
+			fmt.Printf("((")
 		// End of language layer, pop the style
 		case EventLayerEnd:
 			styles = styles[:len(styles)-1]
+			fmt.Printf("))")
+		case EventFoldStart:
+			fmt.Printf("[%d,%d-%d,%d[", e.Range.StartPoint.Row, e.Range.StartPoint.Column, e.Range.EndPoint.Row, e.Range.EndPoint.Column)
+		case EventFoldEnd:
+			fmt.Print("]]")
 		// Start of a capture, push the style
 		case EventCaptureStart:
 			styles = append(styles, theme[captureNames[e.Highlight]])
@@ -79,12 +88,14 @@ func TestHighlighter_Highlight(t *testing.T) {
 			styles = styles[:len(styles)-1]
 		// Source code event, print the source code with the current style.
 		case EventSource:
+			//log.Printf("source: %d,%d", e.StartByte, e.EndByte)
 			// Get the current style, there should always be at least one style
 			style := styles[len(styles)-1]
 			// print the style
 			print(colorStyle(style))
 			// print the source code
 			print(string(source[e.StartByte:e.EndByte]))
+			print("|")
 			// reset the style
 			print(resetStyle)
 		}

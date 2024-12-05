@@ -173,7 +173,6 @@ func newIterLayers(
 				Captures: queryCaptures,
 				Ranges:   ranges,
 				Depth:    depth,
-				New:      true,
 			})
 		}
 
@@ -202,7 +201,6 @@ type iterLayer struct {
 	Captures          *queryCapturesIter
 	Ranges            []tree_sitter.Range
 	Depth             uint
-	New               bool
 }
 
 func (h *iterLayer) sortKey() *sortKey {

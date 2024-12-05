@@ -7,8 +7,6 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/require"
-	"github.com/tree-sitter/go-tree-sitter"
-	"github.com/tree-sitter/tree-sitter-go/bindings/go"
 )
 
 var cssTheme = map[string]string{
@@ -28,18 +26,7 @@ func TestHTMLRender_Render(t *testing.T) {
 	source, err := os.ReadFile("testdata/test.go")
 	require.NoError(t, err)
 
-	language := tree_sitter.NewLanguage(tree_sitter_go.Language())
-
-	highlightsQuery, err := os.ReadFile("testdata/highlights.scm")
-	require.NoError(t, err)
-
-	foldsQuery, err := os.ReadFile("testdata/folds.scm")
-	require.NoError(t, err)
-
-	cfg, err := NewConfiguration(language, "go", highlightsQuery, nil, nil, foldsQuery)
-	require.NoError(t, err)
-
-	cfg.Configure(captureNames)
+	cfg := loadInjection(t, captureNames)("go")
 
 	highlighter := New()
 

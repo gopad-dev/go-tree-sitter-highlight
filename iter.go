@@ -21,12 +21,11 @@ type iterator struct {
 	Highlighter        *Highlighter
 	InjectionCallback  InjectionCallback
 	Layers             []*iterLayer
-	NextEvents         []Event
+	NextEvent          Event
 	LastHighlightRange *highlightRange
-	LayerStack         []*iterLayer
 }
 
-func (h *iterator) emitEvents(offset uint, events ...Event) (Event, error) {
+func (h *iterator) emitEvents(offset uint, event Event) (Event, error) {
 	var result Event
 	if h.ByteOffset < offset {
 		result = EventSource{
@@ -34,23 +33,66 @@ func (h *iterator) emitEvents(offset uint, events ...Event) (Event, error) {
 			EndByte:   offset,
 		}
 		h.ByteOffset = offset
-		h.NextEvents = append(h.NextEvents, events...)
+		h.NextEvent = event
 	} else {
-		if len(events) > 1 {
-			h.NextEvents = append(h.NextEvents, events[1:]...)
-		}
-		result = events[0]
+		result = event
 	}
 	h.sortLayers()
 	return result, nil
 }
 
+func (h *iterator) sortLayers() {
+	for len(h.Layers) > 0 {
+		key := h.Layers[0].sortKey()
+		if key != nil {
+			var i int
+			for i+1 < len(h.Layers) {
+				nextOffsetKey := h.Layers[i+1].sortKey()
+				if nextOffsetKey != nil {
+					if nextOffsetKey.GreaterThan(*key) {
+						i += 1
+						continue
+					}
+				}
+				break
+			}
+			if i > 0 {
+				h.Layers = append(rotateLeft(h.Layers[:i+1], 1), h.Layers[i+1:]...)
+			}
+			break
+		}
+		layer := h.Layers[0]
+		h.Layers = h.Layers[1:]
+		h.Highlighter.pushCursor(layer.Cursor)
+	}
+}
+
+func (h *iterator) insertLayer(layer *iterLayer) {
+	key := layer.sortKey()
+	if key != nil {
+		i := 1
+		for i < len(h.Layers) {
+			keyI := h.Layers[i].sortKey()
+			if keyI != nil {
+				if keyI.LessThan(*key) {
+					h.Layers = slices.Insert(h.Layers, i, layer)
+					return
+				}
+				i += 1
+			} else {
+				h.Layers = slices.Delete(h.Layers, i, i+1)
+			}
+		}
+		h.Layers = append(h.Layers, layer)
+	}
+}
+
 func (h *iterator) next() (Event, error) {
 main:
 	for {
-		if len(h.NextEvents) > 0 {
-			event := h.NextEvents[0]
-			h.NextEvents = h.NextEvents[1:]
+		if h.NextEvent != nil {
+			event := h.NextEvent
+			h.NextEvent = nil
 			return event, nil
 		}
 
@@ -61,25 +103,8 @@ main:
 		default:
 		}
 
-		// Get the next capture from whichever layer has the earliest highlight boundary.
-		var layer *iterLayer
-		if len(h.Layers) > 0 {
-			layer = h.Layers[0]
-		}
-
-		// Check if this layer is new and emit a layer start event if it is.
-		if layer != nil {
-			if layer.New {
-				layer.New = false
-				h.NextEvents = append(h.NextEvents, EventLayerStart{
-					LanguageName: layer.Config.LanguageName,
-					Range:        layer.Ranges[0], // TODO: handle multiple ranges
-				})
-			}
-		}
-
 		// If none of the layers have any more highlight boundaries, terminate.
-		if layer == nil {
+		if len(h.Layers) == 0 {
 			if h.ByteOffset < uint(len(h.Source)) {
 				event := EventSource{
 					StartByte: h.ByteOffset,
@@ -89,17 +114,11 @@ main:
 				return event, nil
 			}
 
-			if len(h.LayerStack) > 0 {
-				h.LayerStack = h.LayerStack[:len(h.LayerStack)-1]
-				return h.emitEvents(h.ByteOffset, EventLayerEnd{})
-			}
-
 			return nil, nil
 		}
 
-		if len(h.LayerStack) == 0 || h.LayerStack[len(h.LayerStack)-1] != layer {
-			h.LayerStack = append(h.LayerStack, layer)
-		}
+		// Get the next capture from whichever layer has the earliest highlight boundary.
+		layer := h.Layers[0]
 
 		var nextCaptureRange tree_sitter.Range
 		if nextMatch, captureIndex, ok := layer.Captures.Peek(); ok {
@@ -129,12 +148,6 @@ main:
 
 		match, captureIndex, _ := layer.Captures.Next()
 		capture := match.Captures[captureIndex]
-
-		// Remove from the layer stack any layers that have already ended.
-		for len(h.LayerStack) > 0 && h.LayerStack[len(h.LayerStack)-1].Ranges[0].EndByte <= nextCaptureRange.StartByte {
-			h.LayerStack = h.LayerStack[:len(h.LayerStack)-1]
-			h.NextEvents = append(h.NextEvents, EventLayerEnd{})
-		}
 
 		// If this capture represents an injection, then process the injection.
 		if match.PatternIndex < layer.Config.LocalsPatternIndex {
@@ -253,30 +266,6 @@ main:
 			continue main
 		}
 
-		// If this capture is for tracking folds, then process the fold info.
-		for match.PatternIndex < layer.Config.HighlightsPatternIndex {
-			if layer.Config.FoldCaptureIndex != nil && uint(capture.Index) == *layer.Config.FoldCaptureIndex {
-				fold := codeFold{
-					Range: nextCaptureRange,
-				}
-
-				layer.FoldStack = append(layer.FoldStack, fold)
-			}
-
-			// Continue processing any additional matches for the same node.
-			if nextMatch, nextCaptureIndex, ok := layer.Captures.Peek(); ok {
-				nextCapture := nextMatch.Captures[nextCaptureIndex]
-				if nextCapture.Node.Equals(capture.Node) {
-					capture = nextCapture
-					match, _, _ = layer.Captures.Next()
-					continue
-				}
-			}
-
-			h.sortLayers()
-			continue main
-		}
-
 		// Otherwise, this capture must represent a highlight.
 		// If this exact range has already been highlighted by an earlier pattern, or by
 		// a different layer, then skip over this one.
@@ -343,52 +332,6 @@ main:
 		}
 
 		h.sortLayers()
-	}
-}
-
-func (h *iterator) sortLayers() {
-	for len(h.Layers) > 0 {
-		key := h.Layers[0].sortKey()
-		if key != nil {
-			var i int
-			for i+1 < len(h.Layers) {
-				nextOffsetKey := h.Layers[i+1].sortKey()
-				if nextOffsetKey != nil {
-					if nextOffsetKey.GreaterThan(*key) {
-						i += 1
-						continue
-					}
-				}
-				break
-			}
-			if i > 0 {
-				h.Layers = append(rotateLeft(h.Layers[:i+1], 1), h.Layers[i+1:]...)
-			}
-			break
-		}
-		layer := h.Layers[0]
-		h.Layers = h.Layers[1:]
-		h.Highlighter.pushCursor(layer.Cursor)
-	}
-}
-
-func (h *iterator) insertLayer(layer *iterLayer) {
-	key := layer.sortKey()
-	if key != nil {
-		i := 1
-		for i < len(h.Layers) {
-			keyI := h.Layers[i].sortKey()
-			if keyI != nil {
-				if keyI.LessThan(*key) {
-					h.Layers = slices.Insert(h.Layers, i, layer)
-					return
-				}
-				i += 1
-			} else {
-				h.Layers = slices.Delete(h.Layers, i, i+1)
-			}
-		}
-		h.Layers = append(h.Layers, layer)
 	}
 }
 

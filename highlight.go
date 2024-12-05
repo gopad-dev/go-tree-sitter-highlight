@@ -35,8 +35,6 @@ func (EventSource) highlightEvent() {}
 type EventLayerStart struct {
 	// LanguageName is the name of the language that is being injected.
 	LanguageName string
-	// Range is the range of the source code that is being injected.
-	Range tree_sitter.Range
 }
 
 func (EventLayerStart) highlightEvent() {}
@@ -131,7 +129,7 @@ func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source [
 		Highlighter:        h,
 		InjectionCallback:  injectionCallback,
 		Layers:             layers,
-		NextEvents:         nil,
+		NextEvent:          nil,
 		LastHighlightRange: nil,
 	}
 	i.sortLayers()

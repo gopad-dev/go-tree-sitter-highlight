@@ -8,6 +8,8 @@ import (
 	"iter"
 	"slices"
 	"unicode/utf8"
+
+	tree_sitter "github.com/tree-sitter/go-tree-sitter"
 )
 
 var (
@@ -154,6 +156,10 @@ func (r *HTMLRender) endHighlight(w io.Writer) error {
 	return err
 }
 
+type Fold struct {
+	Range tree_sitter.Range
+}
+
 // Render renders the code to the writer with spans for each highlight capture.
 // The [AttributeCallback] is used to generate the classes or inline styles for each span.
 func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source []byte, callback AttributeCallback) error {
@@ -161,6 +167,7 @@ func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source 
 		highlights []Highlight
 		languages  []string
 		line       int
+		folds      []Fold
 	)
 
 	line++
@@ -184,6 +191,16 @@ func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source 
 		case EventLayerEnd:
 			highlights = highlights[:len(highlights)-1]
 			languages = languages[:len(languages)-1]
+		case EventFoldStart:
+			if _, err = fmt.Fprintf(w, "<details open><summary>"); err != nil {
+				return fmt.Errorf("error while starting fold: %w", err)
+			}
+			folds = append(folds, Fold{Range: e.Range})
+		case EventFoldEnd:
+			if _, err = fmt.Fprintf(w, "</details>"); err != nil {
+				return fmt.Errorf("error while ending fold: %w", err)
+			}
+			folds = folds[:len(folds)-1]
 		case EventCaptureStart:
 			highlights = append(highlights, e.Highlight)
 			language := languages[len(languages)-1]
@@ -197,6 +214,25 @@ func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source 
 			}
 		case EventSource:
 			text := source[e.StartByte:e.EndByte]
+			if len(folds) > 0 {
+				fold := folds[len(folds)-1]
+				foldText := source[fold.Range.StartByte:fold.Range.EndByte]
+
+				index := bytes.Index(foldText, []byte("\n"))
+				if index > -1 {
+					firstLineByte := fold.Range.StartByte + uint(index)
+					if firstLineByte >= e.StartByte && firstLineByte < e.EndByte {
+						if err = r.addText(w, line, text[:index], highlights, languages, callback); err != nil {
+							return fmt.Errorf("error while writing source: %w", err)
+						}
+						if _, err = w.Write([]byte("</summary>")); err != nil {
+							return fmt.Errorf("error while writing source: %w", err)
+						}
+						text = text[index:]
+						line += 1
+					}
+				}
+			}
 
 			if err = r.addText(w, line, text, highlights, languages, callback); err != nil {
 				return fmt.Errorf("error while writing source: %w", err)

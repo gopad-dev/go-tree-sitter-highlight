@@ -9,13 +9,21 @@ import (
 )
 
 const (
-	captureInjectionCombined        = "injection.combined"
-	captureInjectionLanguage        = "injection.language"
-	captureInjectionSelf            = "injection.self"
-	captureInjectionParent          = "injection.parent"
-	captureInjectionIncludeChildren = "injection.include-children"
-	captureLocal                    = "local"
-	captureLocalScopeInherits       = "local.scope-inherits"
+	captureInjectionLanguage         = "injection.language"
+	captureInjectionContent          = "injection.content"
+	propertyInjectionCombined        = "injection.combined"
+	propertyInjectionSelf            = "injection.self"
+	propertyInjectionParent          = "injection.parent"
+	propertyInjectionIncludeChildren = "injection.include-children"
+
+	captureLocalScope           = "local.scope"
+	captureLocalDefinition      = "local.definition"
+	captureLocalDefinitionValue = "local.definition-value"
+	captureLocalReference       = "local.reference"
+	propertyLocal               = "local"
+	propertyLocalScopeInherits  = "local.scope-inherits"
+
+	captureFold = "fold"
 )
 
 // StandardCaptureNames is a list of common capture names used in tree-sitter queries.
@@ -99,11 +107,11 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 			if patternOffset < highlightsQueryOffset {
 				highlightsPatternIndex++
 			}
-			if patternOffset < localsQueryOffset {
-				localsPatternIndex++
-			}
 			if patternOffset < foldsQueryOffset {
 				foldsPatternIndex++
+			}
+			if patternOffset < localsQueryOffset {
+				localsPatternIndex++
 			}
 		}
 	}
@@ -112,11 +120,12 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 	if err != nil {
 		return nil, fmt.Errorf("error creating combined injections query: %w", err)
 	}
+
 	var hasCombinedQueries bool
 	for i := range localsPatternIndex {
 		settings := combinedInjectionsQuery.PropertySettings(i)
 		if slices.ContainsFunc(settings, func(setting tree_sitter.QueryProperty) bool {
-			return setting.Key == captureInjectionCombined
+			return setting.Key == propertyInjectionCombined
 		}) {
 			hasCombinedQueries = true
 			query.DisablePattern(i)
@@ -132,7 +141,7 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 	for i := range query.PatternCount() {
 		predicates := query.PropertyPredicates(i)
 		if slices.ContainsFunc(predicates, func(predicate tree_sitter.PropertyPredicate) bool {
-			return !predicate.Positive && predicate.Property.Key == captureLocal
+			return !predicate.Positive && predicate.Property.Key == propertyLocal
 		}) {
 			nonLocalVariablePatterns = append(nonLocalVariablePatterns, true)
 		}
@@ -151,20 +160,20 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 	for i, captureName := range query.CaptureNames() {
 		ui := uint(i)
 		switch captureName {
-		case "fold":
-			foldCaptureIndex = &ui
-		case "injection.content":
+		case captureInjectionContent:
 			injectionContentCaptureIndex = &ui
-		case "injection.language":
+		case captureInjectionLanguage:
 			injectionLanguageCaptureIndex = &ui
-		case "local.definition":
+		case captureLocalDefinition:
 			localDefCaptureIndex = &ui
-		case "local.definition-value":
+		case captureLocalDefinitionValue:
 			localDefValueCaptureIndex = &ui
-		case "local.reference":
+		case captureLocalReference:
 			localRefCaptureIndex = &ui
-		case "local.scope":
+		case captureLocalScope:
 			localScopeCaptureIndex = &ui
+		case captureFold:
+			foldCaptureIndex = &ui
 		}
 	}
 

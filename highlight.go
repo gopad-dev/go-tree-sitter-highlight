@@ -35,6 +35,8 @@ func (EventSource) highlightEvent() {}
 type EventLayerStart struct {
 	// LanguageName is the name of the language that is being injected.
 	LanguageName string
+	// Range is the range of the source code that is being injected.
+	Range tree_sitter.Range
 }
 
 func (EventLayerStart) highlightEvent() {}
@@ -173,18 +175,18 @@ func intersectRanges(parentRanges []tree_sitter.Range, nodes []tree_sitter.Node,
 	}
 
 	// TODO: investigate why this is not working, ported from: https://github.com/tree-sitter/tree-sitter/blob/e445532a1fea3b1dda93cee61c534f5b9acc9c16/highlight/src/lib.rs#L638 (and probably wrong lol)
-	//if len(parentRanges) == 0 {
+	// if len(parentRanges) == 0 {
 	//	panic("Layers should only be constructed with non-empty ranges")
-	//}
+	// }
 	//
-	//parentRange := parentRanges[0]
-	//parentRanges = parentRanges[1:]
+	// parentRange := parentRanges[0]
+	// parentRanges = parentRanges[1:]
 	//
-	//cursor := nodes[0].Walk()
-	//defer cursor.Close()
+	// cursor := nodes[0].Walk()
+	// defer cursor.Close()
 	//
-	//var results []tree_sitter.Range
-	//for _, node := range nodes {
+	// var results []tree_sitter.Range
+	// for _, node := range nodes {
 	//	precedingRange := tree_sitter.Range{
 	//		StartByte: 0,
 	//		StartPoint: tree_sitter.Point{
@@ -259,16 +261,12 @@ func intersectRanges(parentRanges []tree_sitter.Range, nodes []tree_sitter.Node,
 	//			}
 	//		}
 	//	}
-	//}
+	// }
 	//
-	//return results
+	// return results
 }
 
 func injectionForMatch(config Configuration, parentName string, query *tree_sitter.Query, match tree_sitter.QueryMatch, source []byte) (string, *tree_sitter.Node, bool) {
-	if config.InjectionContentCaptureIndex == nil || config.InjectionLanguageCaptureIndex == nil {
-		return "", nil, false
-	}
-
 	var (
 		languageName    string
 		contentNode     *tree_sitter.Node
@@ -277,9 +275,9 @@ func injectionForMatch(config Configuration, parentName string, query *tree_sitt
 
 	for _, capture := range match.Captures {
 		index := uint(capture.Index)
-		if index == *config.InjectionLanguageCaptureIndex {
+		if config.InjectionLanguageCaptureIndex != nil && index == *config.InjectionLanguageCaptureIndex {
 			languageName = capture.Node.Utf8Text(source)
-		} else if index == *config.InjectionContentCaptureIndex {
+		} else if config.InjectionContentCaptureIndex != nil && index == *config.InjectionContentCaptureIndex {
 			contentNode = &capture.Node
 		}
 	}
@@ -290,15 +288,15 @@ func injectionForMatch(config Configuration, parentName string, query *tree_sitt
 			if languageName == "" {
 				languageName = *property.Value
 			}
-		case captureInjectionSelf:
+		case propertyInjectionSelf:
 			if languageName == "" {
 				languageName = config.LanguageName
 			}
-		case captureInjectionParent:
+		case propertyInjectionParent:
 			if languageName == "" {
 				languageName = parentName
 			}
-		case captureInjectionIncludeChildren:
+		case propertyInjectionIncludeChildren:
 			includeChildren = true
 		}
 	}

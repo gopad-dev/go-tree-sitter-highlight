@@ -23,7 +23,7 @@ type iterator struct {
 	Layers             []*iterLayer
 	NextEvents         []Event
 	LastHighlightRange *highlightRange
-	LastLayer          *iterLayer
+	LayerStack         []*iterLayer
 }
 
 func (h *iterator) emitEvents(offset uint, events ...Event) (Event, error) {
@@ -67,19 +67,13 @@ main:
 			layer = h.Layers[0]
 		}
 
-		if layer != h.LastLayer {
-			if h.LastLayer != nil {
-				for len(h.LastLayer.FoldStack) > 0 {
-					h.LastLayer.FoldStack = h.LastLayer.FoldStack[:len(h.LastLayer.FoldStack)-1]
-					h.NextEvents = append(h.NextEvents, EventFoldEnd{})
-				}
-				h.NextEvents = append(h.NextEvents, EventLayerEnd{})
-			}
-			h.LastLayer = layer
-
-			if layer != nil {
+		// Check if this layer is new and emit a layer start event if it is.
+		if layer != nil {
+			if layer.New {
+				layer.New = false
 				h.NextEvents = append(h.NextEvents, EventLayerStart{
 					LanguageName: layer.Config.LanguageName,
+					Range:        layer.Ranges[0], // TODO: handle multiple ranges
 				})
 			}
 		}
@@ -95,7 +89,16 @@ main:
 				return event, nil
 			}
 
+			if len(h.LayerStack) > 0 {
+				h.LayerStack = h.LayerStack[:len(h.LayerStack)-1]
+				return h.emitEvents(h.ByteOffset, EventLayerEnd{})
+			}
+
 			return nil, nil
+		}
+
+		if len(h.LayerStack) == 0 || h.LayerStack[len(h.LayerStack)-1] != layer {
+			h.LayerStack = append(h.LayerStack, layer)
 		}
 
 		var nextCaptureRange tree_sitter.Range
@@ -113,15 +116,6 @@ main:
 					return h.emitEvents(endByte, EventCaptureEnd{})
 				}
 			}
-
-			// Remove from the fold stack any folds that have already ended.
-			if len(layer.FoldStack) > 0 {
-				endByte := layer.FoldStack[len(layer.FoldStack)-1].Range.EndByte
-				if endByte <= nextCaptureRange.StartByte {
-					layer.FoldStack = layer.FoldStack[:len(layer.FoldStack)-1]
-					return h.emitEvents(endByte, EventFoldEnd{})
-				}
-			}
 		} else {
 			// If there are no more captures, then emit any remaining highlight end events.
 			// And if there are none of those, then just advance to the end of the document.
@@ -135,6 +129,12 @@ main:
 
 		match, captureIndex, _ := layer.Captures.Next()
 		capture := match.Captures[captureIndex]
+
+		// Remove from the layer stack any layers that have already ended.
+		for len(h.LayerStack) > 0 && h.LayerStack[len(h.LayerStack)-1].Ranges[0].EndByte <= nextCaptureRange.StartByte {
+			h.LayerStack = h.LayerStack[:len(h.LayerStack)-1]
+			h.NextEvents = append(h.NextEvents, EventLayerEnd{})
+		}
 
 		// If this capture represents an injection, then process the injection.
 		if match.PatternIndex < layer.Config.LocalsPatternIndex {
@@ -186,7 +186,7 @@ main:
 					LocalDefs: nil,
 				}
 				for _, prop := range layer.Config.Query.PropertySettings(match.PatternIndex) {
-					if prop.Key == captureLocalScopeInherits {
+					if prop.Key == propertyLocalScopeInherits {
 						scope.Inherits = *prop.Value == "true"
 					}
 				}
@@ -261,9 +261,6 @@ main:
 				}
 
 				layer.FoldStack = append(layer.FoldStack, fold)
-				return h.emitEvents(nextCaptureRange.StartByte, EventFoldStart{
-					Range: nextCaptureRange,
-				})
 			}
 
 			// Continue processing any additional matches for the same node.

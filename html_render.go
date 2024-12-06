@@ -191,16 +191,16 @@ func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source 
 		case EventLayerEnd:
 			highlights = highlights[:len(highlights)-1]
 			languages = languages[:len(languages)-1]
-		case EventFoldStart:
-			if _, err = fmt.Fprintf(w, "<details open><summary>"); err != nil {
-				return fmt.Errorf("error while starting fold: %w", err)
-			}
-			folds = append(folds, Fold{Range: e.Range})
-		case EventFoldEnd:
-			if _, err = fmt.Fprintf(w, "</details>"); err != nil {
-				return fmt.Errorf("error while ending fold: %w", err)
-			}
-			folds = folds[:len(folds)-1]
+		// case EventFoldStart:
+		// 	if _, err = fmt.Fprintf(w, "<details open><summary>"); err != nil {
+		// 		return fmt.Errorf("error while starting fold: %w", err)
+		// 	}
+		// 	folds = append(folds, Fold{Range: e.Range})
+		// case EventFoldEnd:
+		// 	if _, err = fmt.Fprintf(w, "</details>"); err != nil {
+		// 		return fmt.Errorf("error while ending fold: %w", err)
+		// 	}
+		// 	folds = folds[:len(folds)-1]
 		case EventCaptureStart:
 			highlights = append(highlights, e.Highlight)
 			language := languages[len(languages)-1]

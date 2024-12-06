@@ -1,6 +1,7 @@
 package highlight
 
 import (
+	"bytes"
 	"context"
 	"iter"
 
@@ -35,6 +36,7 @@ func (EventSource) highlightEvent() {}
 type EventLayerStart struct {
 	// LanguageName is the name of the language that is being injected.
 	LanguageName string
+	Range        tree_sitter.Range
 }
 
 func (EventLayerStart) highlightEvent() {}
@@ -43,16 +45,6 @@ func (EventLayerStart) highlightEvent() {}
 type EventLayerEnd struct{}
 
 func (EventLayerEnd) highlightEvent() {}
-
-type EventFoldStart struct {
-	Range tree_sitter.Range
-}
-
-func (EventFoldStart) highlightEvent() {}
-
-type EventFoldEnd struct{}
-
-func (EventFoldEnd) highlightEvent() {}
 
 // EventCaptureStart is emitted when a highlight region starts.
 type EventCaptureStart struct {
@@ -104,14 +96,14 @@ func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source [
 	layers, err := newIterLayers(ctx, source, "", h, injectionCallback, cfg, 0, []tree_sitter.Range{
 		{
 			StartByte: 0,
-			EndByte:   ^uint(0),
+			EndByte:   uint(len(source)) + 1,
 			StartPoint: tree_sitter.Point{
 				Row:    0,
 				Column: 0,
 			},
 			EndPoint: tree_sitter.Point{
-				Row:    ^uint(0),
-				Column: ^uint(0),
+				Row:    uint(bytes.Count(source, []byte("\n"))),
+				Column: uint(len(source[bytes.LastIndexByte(source, '\n'):])) - 1,
 			},
 		},
 	})
@@ -129,7 +121,7 @@ func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source [
 		Highlighter:        h,
 		InjectionCallback:  injectionCallback,
 		Layers:             layers,
-		NextEvent:          nil,
+		NextEvents:         nil,
 		LastHighlightRange: nil,
 	}
 	i.sortLayers()

@@ -78,10 +78,6 @@ type localScope struct {
 	LocalDefs []localDef
 }
 
-type codeFold struct {
-	Range tree_sitter.Range
-}
-
 func newIterLayers(
 	ctx context.Context,
 	source []byte,
@@ -197,7 +193,6 @@ type iterLayer struct {
 	Config            Configuration
 	HighlightEndStack []uint
 	ScopeStack        []localScope
-	FoldStack         []codeFold
 	Captures          *queryCapturesIter
 	Ranges            []tree_sitter.Range
 	Depth             uint

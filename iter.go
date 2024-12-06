@@ -21,11 +21,12 @@ type iterator struct {
 	Highlighter        *Highlighter
 	InjectionCallback  InjectionCallback
 	Layers             []*iterLayer
-	NextEvent          Event
+	NextEvents         []Event
 	LastHighlightRange *highlightRange
+	LayerStack         []*iterLayer
 }
 
-func (h *iterator) emitEvents(offset uint, event Event) (Event, error) {
+func (h *iterator) emitEvents(offset uint, events ...Event) (Event, error) {
 	var result Event
 	if h.ByteOffset < offset {
 		result = EventSource{
@@ -33,9 +34,12 @@ func (h *iterator) emitEvents(offset uint, event Event) (Event, error) {
 			EndByte:   offset,
 		}
 		h.ByteOffset = offset
-		h.NextEvent = event
+		h.NextEvents = append(h.NextEvents, events...)
 	} else {
-		result = event
+		if len(h.NextEvents) > 1 {
+			h.NextEvents = append(h.NextEvents, events[1:]...)
+		}
+		result = events[0]
 	}
 	h.sortLayers()
 	return result, nil
@@ -90,9 +94,9 @@ func (h *iterator) insertLayer(layer *iterLayer) {
 func (h *iterator) next() (Event, error) {
 main:
 	for {
-		if h.NextEvent != nil {
-			event := h.NextEvent
-			h.NextEvent = nil
+		if len(h.NextEvents) > 0 {
+			event := h.NextEvents[0]
+			h.NextEvents = h.NextEvents[1:]
 			return event, nil
 		}
 
@@ -114,11 +118,38 @@ main:
 				return event, nil
 			}
 
+			if len(h.LayerStack) > 0 {
+				h.LayerStack = h.LayerStack[:len(h.LayerStack)-1]
+				return h.emitEvents(h.ByteOffset, EventLayerEnd{})
+			}
+
 			return nil, nil
 		}
 
 		// Get the next capture from whichever layer has the earliest highlight boundary.
 		layer := h.Layers[0]
+
+		if len(h.LayerStack) == 0 {
+			h.LayerStack = append(h.LayerStack, layer)
+			return h.emitEvents(0, EventLayerStart{
+				LanguageName: layer.Config.LanguageName,
+				Range:        layer.Ranges[0],
+			})
+		}
+
+		if layer != h.LayerStack[len(h.LayerStack)-1] {
+			index := slices.Index(h.LayerStack, layer)
+			if index != -1 {
+				lastLayer := h.LayerStack[len(h.LayerStack)-1]
+				h.LayerStack = h.LayerStack[:len(h.LayerStack)-1]
+				return h.emitEvents(lastLayer.Ranges[0].EndByte, EventLayerEnd{})
+			}
+			h.LayerStack = append(h.LayerStack, layer)
+			return h.emitEvents(layer.Ranges[0].StartByte, EventLayerStart{
+				LanguageName: layer.Config.LanguageName,
+				Range:        layer.Ranges[0],
+			})
+		}
 
 		var nextCaptureRange tree_sitter.Range
 		if nextMatch, captureIndex, ok := layer.Captures.Peek(); ok {
@@ -188,7 +219,7 @@ main:
 		// local variable info.
 		var referenceHighlight *Highlight
 		var definitionHighlight *Highlight
-		for match.PatternIndex < layer.Config.FoldsPatternIndex {
+		for match.PatternIndex < layer.Config.HighlightsPatternIndex {
 			// If the node represents a local scope, push a new local scope onto
 			// the scope stack.
 			if layer.Config.LocalScopeCaptureIndex != nil && uint(capture.Index) == *layer.Config.LocalScopeCaptureIndex {

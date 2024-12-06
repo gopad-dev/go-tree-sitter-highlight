@@ -1,4 +1,4 @@
-package highlight
+package peekiter
 
 import (
 	"slices"
@@ -12,17 +12,16 @@ type peekedQueryCapture struct {
 	ok    bool
 }
 
-func newQueryCapturesIter(iter tree_sitter.QueryCaptures) *queryCapturesIter {
-	return &queryCapturesIter{captures: iter}
+func NewQueryCaptures(iter tree_sitter.QueryCaptures) *QueryCaptures {
+	return &QueryCaptures{captures: iter}
 }
 
-// queryCapturesIter allows iterating over the captures of a query while peeking the next capture.
-type queryCapturesIter struct {
+type QueryCaptures struct {
 	captures tree_sitter.QueryCaptures
 	peeked   *peekedQueryCapture
 }
 
-func (q *queryCapturesIter) next() (tree_sitter.QueryMatch, uint, bool) {
+func (q *QueryCaptures) next() (tree_sitter.QueryMatch, uint, bool) {
 	match, index := q.captures.Next()
 	if match == nil {
 		return tree_sitter.QueryMatch{}, index, false
@@ -32,7 +31,7 @@ func (q *queryCapturesIter) next() (tree_sitter.QueryMatch, uint, bool) {
 	return *match, index, true
 }
 
-func (q *queryCapturesIter) Next() (tree_sitter.QueryMatch, uint, bool) {
+func (q *QueryCaptures) Next() (tree_sitter.QueryMatch, uint, bool) {
 	if q.peeked != nil {
 		peeked := q.peeked
 		q.peeked = nil
@@ -41,7 +40,7 @@ func (q *queryCapturesIter) Next() (tree_sitter.QueryMatch, uint, bool) {
 	return q.next()
 }
 
-func (q *queryCapturesIter) Peek() (tree_sitter.QueryMatch, uint, bool) {
+func (q *QueryCaptures) Peek() (tree_sitter.QueryMatch, uint, bool) {
 	if q.peeked == nil {
 		match, index, ok := q.next()
 		q.peeked = &peekedQueryCapture{

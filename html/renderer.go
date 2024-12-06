@@ -1,4 +1,4 @@
-package highlight
+package html
 
 import (
 	"bytes"
@@ -9,7 +9,9 @@ import (
 	"slices"
 	"unicode/utf8"
 
-	tree_sitter "github.com/tree-sitter/go-tree-sitter"
+	"github.com/tree-sitter/go-tree-sitter"
+
+	"go.gopad.dev/go-tree-sitter-highlight/highlight"
 )
 
 var (
@@ -22,9 +24,9 @@ var (
 
 // AttributeCallback is a callback function that returns the html element attributes for a highlight span.
 // This can be anything from classes, ids, or inline styles.
-type AttributeCallback func(h Highlight, languageName string) []byte
+type AttributeCallback func(h highlight.Highlight, languageName string) string
 
-type HTMLTheme struct {
+type Theme struct {
 	TabWidth                    int
 	BackgroundColor             string
 	Color                       string
@@ -33,12 +35,12 @@ type HTMLTheme struct {
 	SelectedLineBackgroundColor string
 }
 
-// NewHTMLRender returns a new HTMLRender.
-func NewHTMLRender() *HTMLRender {
-	return &HTMLRender{
+// NewRenderer returns a new Renderer.
+func NewRenderer() *Renderer {
+	return &Renderer{
 		ClassNamePrefix: "hl-",
 		LineNumbers:     true,
-		Theme: HTMLTheme{
+		Theme: Theme{
 			BackgroundColor:             "#212122",
 			Color:                       "#f8f8f2",
 			LineNumbersBackgroundColor:  "#2b2b2b",
@@ -48,14 +50,14 @@ func NewHTMLRender() *HTMLRender {
 	}
 }
 
-// HTMLRender is a renderer that outputs HTML.
-type HTMLRender struct {
+// Renderer is a renderer that outputs HTML.
+type Renderer struct {
 	ClassNamePrefix string
 	LineNumbers     bool
-	Theme           HTMLTheme
+	Theme           Theme
 }
 
-func (r *HTMLRender) addText(w io.Writer, line int, source []byte, hs []Highlight, languages []string, callback AttributeCallback) error {
+func (r *Renderer) addText(w io.Writer, line int, source []byte, hs []highlight.Highlight, languages []string, callback AttributeCallback) error {
 	for len(source) > 0 {
 		c, l := utf8.DecodeRune(source)
 		source = source[l:]
@@ -96,7 +98,7 @@ func (r *HTMLRender) addText(w io.Writer, line int, source []byte, hs []Highligh
 				if err := r.startHighlight(w, h, languageName, callback); err != nil {
 					return err
 				}
-				if h == DefaultHighlight {
+				if h == highlight.DefaultHighlight {
 					languageName, _ = nextLanguage()
 				}
 			}
@@ -128,12 +130,12 @@ func (r *HTMLRender) addText(w io.Writer, line int, source []byte, hs []Highligh
 	return nil
 }
 
-func (r *HTMLRender) startHighlight(w io.Writer, h Highlight, languageName string, callback AttributeCallback) error {
+func (r *Renderer) startHighlight(w io.Writer, h highlight.Highlight, languageName string, callback AttributeCallback) error {
 	if _, err := fmt.Fprintf(w, "<span"); err != nil {
 		return err
 	}
 
-	var attributes []byte
+	var attributes string
 	if callback != nil {
 		attributes = callback(h, languageName)
 	}
@@ -142,7 +144,7 @@ func (r *HTMLRender) startHighlight(w io.Writer, h Highlight, languageName strin
 		if _, err := w.Write([]byte(" ")); err != nil {
 			return err
 		}
-		if _, err := w.Write(attributes); err != nil {
+		if _, err := w.Write([]byte(attributes)); err != nil {
 			return err
 		}
 	}
@@ -151,7 +153,7 @@ func (r *HTMLRender) startHighlight(w io.Writer, h Highlight, languageName strin
 	return err
 }
 
-func (r *HTMLRender) endHighlight(w io.Writer) error {
+func (r *Renderer) endHighlight(w io.Writer) error {
 	_, err := w.Write([]byte("</span>"))
 	return err
 }
@@ -160,11 +162,11 @@ type Fold struct {
 	Range tree_sitter.Range
 }
 
-// Render renders the code to the writer with spans for each highlight capture.
+// Renderer renders the code to the writer with spans for each highlight capture.
 // The [AttributeCallback] is used to generate the classes or inline styles for each span.
-func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source []byte, callback AttributeCallback) error {
+func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], source []byte, callback AttributeCallback) error {
 	var (
-		highlights []Highlight
+		highlights []highlight.Highlight
 		languages  []string
 		line       int
 		folds      []Fold
@@ -185,10 +187,10 @@ func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source 
 		}
 
 		switch e := event.(type) {
-		case EventLayerStart:
-			highlights = append(highlights, DefaultHighlight)
+		case highlight.EventLayerStart:
+			highlights = append(highlights, highlight.DefaultHighlight)
 			languages = append(languages, e.LanguageName)
-		case EventLayerEnd:
+		case highlight.EventLayerEnd:
 			highlights = highlights[:len(highlights)-1]
 			languages = languages[:len(languages)-1]
 		// case EventFoldStart:
@@ -201,18 +203,18 @@ func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source 
 		// 		return fmt.Errorf("error while ending fold: %w", err)
 		// 	}
 		// 	folds = folds[:len(folds)-1]
-		case EventCaptureStart:
+		case highlight.EventCaptureStart:
 			highlights = append(highlights, e.Highlight)
 			language := languages[len(languages)-1]
 			if err = r.startHighlight(w, e.Highlight, language, callback); err != nil {
 				return fmt.Errorf("error while starting highlight: %w", err)
 			}
-		case EventCaptureEnd:
+		case highlight.EventCaptureEnd:
 			highlights = highlights[:len(highlights)-1]
 			if err = r.endHighlight(w); err != nil {
 				return fmt.Errorf("error while ending highlight: %w", err)
 			}
-		case EventSource:
+		case highlight.EventSource:
 			text := source[e.StartByte:e.EndByte]
 			if len(folds) > 0 {
 				fold := folds[len(folds)-1]
@@ -246,7 +248,7 @@ func (r *HTMLRender) Render(w io.Writer, events iter.Seq2[Event, error], source 
 }
 
 // RenderCSS renders the css classes for a theme to the writer.
-func (r *HTMLRender) RenderCSS(w io.Writer, theme map[string]string) error {
+func (r *Renderer) RenderCSS(w io.Writer, theme map[string]string) error {
 	if r.LineNumbers {
 		if _, err := fmt.Fprintf(w, ".%shl{background-color:%s;color:%s;tab-width:%d;}\n"+
 			".%slns {float: left;padding-left:0.5rem;padding-right: 0.5rem;background-color:%s;color:%s;}\n"+
@@ -286,7 +288,7 @@ func (r *HTMLRender) RenderCSS(w io.Writer, theme map[string]string) error {
 	return nil
 }
 
-func (r *HTMLRender) RenderLineNumbers(w io.Writer, lineCount int) error {
+func (r *Renderer) RenderLineNumbers(w io.Writer, lineCount int) error {
 	if _, err := fmt.Fprintf(w, "<div class=\"%slns\">", r.ClassNamePrefix); err != nil {
 		return err
 	}
@@ -301,19 +303,19 @@ func (r *HTMLRender) RenderLineNumbers(w io.Writer, lineCount int) error {
 	return err
 }
 
-func (r *HTMLRender) themeAttributeCallback(captureNames []string) AttributeCallback {
-	return func(h Highlight, languageName string) []byte {
-		if h == DefaultHighlight {
-			return nil
+func (r *Renderer) themeAttributeCallback(captureNames []string) AttributeCallback {
+	return func(h highlight.Highlight, languageName string) string {
+		if h == highlight.DefaultHighlight {
+			return ""
 		}
 
-		return []byte(fmt.Sprintf(`class="%s%s"`, r.ClassNamePrefix, captureNames[h]))
+		return fmt.Sprintf(`class="%s%s"`, r.ClassNamePrefix, captureNames[h])
 	}
 
 }
 
 // RenderDocument renders a full HTML document with the code and theme embedded.
-func (r *HTMLRender) RenderDocument(w io.Writer, events iter.Seq2[Event, error], title string, source []byte, captureNames []string, theme map[string]string) error {
+func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event, error], title string, source []byte, captureNames []string, theme map[string]string) error {
 	if _, err := fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", html.EscapeString(title)); err != nil {
 		return err
 	}

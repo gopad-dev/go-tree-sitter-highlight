@@ -92,7 +92,7 @@ func (h *Highlighter) popCursor() *tree_sitter.QueryCursor {
 
 // Highlight highlights the given source code using the given configuration. The source code is expected to be UTF-8 encoded.
 // The function returns an [iter.Seq2[Event, error]] that yields the highlight events or an error.
-func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source []byte, injectionCallback InjectionCallback) iter.Seq2[Event, error] {
+func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source []byte, injectionCallback InjectionCallback) (iter.Seq2[Event, error], error) {
 	layers, err := newIterLayers(ctx, source, "", h, injectionCallback, cfg, 0, []tree_sitter.Range{
 		{
 			StartByte: 0,
@@ -108,9 +108,7 @@ func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source [
 		},
 	})
 	if err != nil {
-		return func(yield func(Event, error) bool) {
-			yield(nil, err)
-		}
+		return nil, err
 	}
 
 	i := &iterator{
@@ -147,7 +145,7 @@ func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source [
 				return
 			}
 		}
-	}
+	}, err
 }
 
 // Compute the ranges that should be included when parsing an injection.

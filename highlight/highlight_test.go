@@ -37,10 +37,10 @@ func loadInjection(t *testing.T, captureNames []string) InjectionCallback {
 	return func(languageName string) *Configuration {
 		switch languageName {
 		case "go":
-			highlightsQuery, err := os.ReadFile("testdata/go/highlights.scm")
+			highlightsQuery, err := os.ReadFile("../testdata/go/highlights.scm")
 			require.NoError(t, err)
 
-			injectionsQuery, err := os.ReadFile("testdata/go/injections.scm")
+			injectionsQuery, err := os.ReadFile("../testdata/go/injections.scm")
 			require.NoError(t, err)
 
 			language := tree_sitter.NewLanguage(tree_sitter_go.Language())
@@ -51,7 +51,7 @@ func loadInjection(t *testing.T, captureNames []string) InjectionCallback {
 
 			return cfg
 		case "comment":
-			highlightsQuery, err := os.ReadFile("testdata/comment/highlights.scm")
+			highlightsQuery, err := os.ReadFile("../testdata/comment/highlights.scm")
 			require.NoError(t, err)
 
 			commentLang := tree_sitter.NewLanguage(comment.GetLanguage())
@@ -74,7 +74,7 @@ func TestHighlighter_Highlight(t *testing.T) {
 		captureNames = append(captureNames, name)
 	}
 
-	source, err := os.ReadFile("testdata/test.go")
+	source, err := os.ReadFile("../testdata/test.go")
 	require.NoError(t, err)
 
 	cfg := loadInjection(t, captureNames)("go")
@@ -82,7 +82,8 @@ func TestHighlighter_Highlight(t *testing.T) {
 	highlighter := New()
 
 	ctx := context.Background()
-	events := highlighter.Highlight(ctx, *cfg, source, loadInjection(t, captureNames))
+	events, err := highlighter.Highlight(ctx, *cfg, source, loadInjection(t, captureNames))
+	require.NoError(t, err)
 
 	var styles []int
 	for event, err := range events {

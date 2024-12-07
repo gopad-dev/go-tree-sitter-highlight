@@ -9,13 +9,14 @@ import (
 	"go.gopad.dev/go-tree-sitter-highlight/internal/peekiter"
 )
 
-func newIgnoredTag(nameRange byteRange) Tag {
+func newIgnoredTag(nameRange byteRange, scopeRange *byteRange) Tag {
 	return Tag{
 		Range: byteRange{
 			Start: ^uint(0),
 			End:   ^uint(0),
 		},
-		NameRange: nameRange,
+		NameRange:  nameRange,
+		ScopeRange: scopeRange,
 		LineRange: byteRange{
 			Start: 0,
 			End:   0,
@@ -30,15 +31,17 @@ func newIgnoredTag(nameRange byteRange) Tag {
 				Column: 0,
 			},
 		},
-		Docs:         "",
-		IsDefinition: false,
-		SyntaxTypeID: 0,
+		UTF16ColumnRange: byteRange{},
+		Docs:             "",
+		IsDefinition:     false,
+		SyntaxTypeID:     0,
 	}
 }
 
 type Tag struct {
 	Range            byteRange
 	NameRange        byteRange
+	ScopeRange       *byteRange
 	LineRange        byteRange
 	Span             pointRange
 	UTF16ColumnRange byteRange

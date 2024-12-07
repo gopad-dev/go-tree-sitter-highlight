@@ -11,7 +11,32 @@
   (comment)* @doc
   .
   (method_declaration
+    receiver: (parameter_list (parameter_declaration type: (pointer_type (type_identifier) @scope)))
     name: (field_identifier) @name) @definition.method
+  (#strip! @doc "^//\\s*")
+  (#set-adjacent! @doc @definition.method)
+)
+
+(
+  (comment)* @doc
+  .
+  (method_declaration
+    receiver: (parameter_list (parameter_declaration type: (type_identifier) @scope))
+    name: (field_identifier) @name) @definition.method
+  (#strip! @doc "^//\\s*")
+  (#set-adjacent! @doc @definition.method)
+)
+
+(
+  (comment)* @doc
+  .
+  (type_declaration
+    (type_spec
+      name: (type_identifier) @scope
+      type: (struct_type
+        (field_declaration_list
+          (field_declaration
+            name: (field_identifier) @name) @definition.field))))
   (#strip! @doc "^//\\s*")
   (#set-adjacent! @doc @definition.method)
 )
@@ -29,7 +54,13 @@
 
 (type_identifier) @name @reference.type
 
-(package_clause "package" (package_identifier) @name)
+(
+  (comment)* @doc
+  .
+  (package_clause "package" (package_identifier) @name) @definition.module
+  (#strip! @doc "^//\\s*")
+  (#set-adjacent! @doc @definition.method)
+)
 
 (import_declaration (import_spec) @name)
 
@@ -43,12 +74,6 @@
 
 (type_declaration (type_spec name: (type_identifier) @name type: [(map_type) (channel_type) (slice_type) (array_type) (pointer_type) (type_identifier)])) @definition.type
 
-(method_declaration receiver: (parameter_list (parameter_declaration type: (pointer_type (type_identifier)))) name: (field_identifier) @name) @definition.method
-
-(method_declaration receiver: (parameter_list (parameter_declaration type: (type_identifier))) name: (field_identifier) @name) @definition.method
-
 (method_elem name: (field_identifier) @name) @definition.method
 
 (const_declaration (const_spec name: (identifier) @name value: (_) @definition.constant))
-
-(field_declaration name: (field_identifier) @name) @definition.field

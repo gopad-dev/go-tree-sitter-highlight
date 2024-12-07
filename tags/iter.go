@@ -91,6 +91,7 @@ func (t *iterator) next() (*Tag, error) {
 
 			var (
 				nameNode         *tree_sitter.Node
+				scopeNode        *tree_sitter.Node
 				docNodes         []tree_sitter.Node
 				tagNode          *tree_sitter.Node
 				syntaxTypeID     uint
@@ -113,6 +114,8 @@ func (t *iterator) next() (*Tag, error) {
 
 				if t.Cfg.nameCaptureIndex != nil && index == *t.Cfg.nameCaptureIndex {
 					nameNode = &capture.Node
+				} else if t.Cfg.scopeCaptureIndex != nil && index == *t.Cfg.scopeCaptureIndex {
+					scopeNode = &capture.Node
 				} else if t.Cfg.docCaptureIndex != nil && index == *t.Cfg.docCaptureIndex {
 					docNodes = append(docNodes, capture.Node)
 				}
@@ -126,6 +129,11 @@ func (t *iterator) next() (*Tag, error) {
 
 			if nameNode != nil {
 				nameRange := newByteRange(nameNode.ByteRange())
+				var scopeRange *byteRange
+				if scopeNode != nil {
+					newScopeRange := newByteRange(scopeNode.ByteRange())
+					scopeRange = &newScopeRange
+				}
 
 				var tag Tag
 				if tagNode != nil {
@@ -234,6 +242,7 @@ func (t *iterator) next() (*Tag, error) {
 					tag = Tag{
 						Range:            tagRange,
 						NameRange:        nameRange,
+						ScopeRange:       scopeRange,
 						LineRange:        lineRange,
 						Span:             span,
 						UTF16ColumnRange: utf16ColumnRange,
@@ -242,7 +251,7 @@ func (t *iterator) next() (*Tag, error) {
 						SyntaxTypeID:     syntaxTypeID,
 					}
 				} else if isIgnored {
-					tag = newIgnoredTag(nameRange)
+					tag = newIgnoredTag(nameRange, scopeRange)
 				} else {
 					continue
 				}

@@ -41,8 +41,13 @@ func TestTagger_Tags(t *testing.T) {
 			kind = "ref"
 		}
 
+		name := string(source[tag.NameRange.Start:tag.NameRange.End])
+		if tag.ScopeRange != nil {
+			name = string(source[tag.ScopeRange.Start:tag.ScopeRange.End]) + "." + name
+		}
+
 		msg := fmt.Sprintf("%s\t | %s\t%s (%d, %d - %d, %d) `%s`",
-			source[tag.NameRange.Start:tag.NameRange.End],
+			name,
 			cfg.SyntaxTypeName(tag.SyntaxTypeID),
 			kind,
 			tag.Span.Start.Row,

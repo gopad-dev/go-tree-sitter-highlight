@@ -2,7 +2,6 @@ package tags
 
 import (
 	"fmt"
-	"log"
 	"regexp"
 	"slices"
 	"strings"
@@ -33,19 +32,21 @@ func NewConfiguration(language *tree_sitter.Language, tagsQuery []byte, localsQu
 		syntaxTypeNames             []string
 		docCaptureIndex             *uint
 		nameCaptureIndex            *uint
+		scopeCaptureIndex           *uint
 		ignoreCaptureIndex          *uint
 		localScopeCaptureIndex      *uint
 		localDefinitionCaptureIndex *uint
 	)
 	for i, captureName := range query.CaptureNames() {
 		ui := uint(i)
-		log.Println("captureName", captureName)
 
 		switch captureName {
 		case "doc":
 			docCaptureIndex = &ui
 		case "name":
 			nameCaptureIndex = &ui
+		case "scope":
+			scopeCaptureIndex = &ui
 		case "ignore":
 			ignoreCaptureIndex = &ui
 		case "local.scope":
@@ -123,6 +124,7 @@ func NewConfiguration(language *tree_sitter.Language, tagsQuery []byte, localsQu
 		tagsPatternIndex:            tagsPatternIndex,
 		docCaptureIndex:             docCaptureIndex,
 		nameCaptureIndex:            nameCaptureIndex,
+		scopeCaptureIndex:           scopeCaptureIndex,
 		ignoreCaptureIndex:          ignoreCaptureIndex,
 		localScopeCaptureIndex:      localScopeCaptureIndex,
 		localDefinitionCaptureIndex: localDefinitionCaptureIndex,
@@ -138,6 +140,7 @@ type Configuration struct {
 	tagsPatternIndex            uint
 	docCaptureIndex             *uint
 	nameCaptureIndex            *uint
+	scopeCaptureIndex           *uint
 	ignoreCaptureIndex          *uint
 	localScopeCaptureIndex      *uint
 	localDefinitionCaptureIndex *uint

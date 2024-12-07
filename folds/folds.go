@@ -13,19 +13,19 @@ type Fold struct {
 	Range tree_sitter.Range
 }
 
-func New() *Context {
-	return &Context{
+func New() *Folder {
+	return &Folder{
 		Parser: tree_sitter.NewParser(),
 		cursor: tree_sitter.NewQueryCursor(),
 	}
 }
 
-type Context struct {
+type Folder struct {
 	Parser *tree_sitter.Parser
 	cursor *tree_sitter.QueryCursor
 }
 
-func (c *Context) Folds(ctx context.Context, cfg Configuration, source []byte) (iter.Seq2[Fold, error], error) {
+func (c *Folder) Folds(ctx context.Context, cfg Configuration, source []byte) (iter.Seq2[Fold, error], error) {
 	err := c.Parser.SetLanguage(cfg.Language)
 	if err != nil {
 		return nil, err

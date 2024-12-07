@@ -10,7 +10,7 @@ import (
 	"github.com/tree-sitter/tree-sitter-go/bindings/go"
 )
 
-func TestContext_Folds(t *testing.T) {
+func TestFolder_Folds(t *testing.T) {
 	source, err := os.ReadFile("../testdata/test.go")
 	require.NoError(t, err)
 

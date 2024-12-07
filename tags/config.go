@@ -2,6 +2,7 @@ package tags
 
 import (
 	"fmt"
+	"log"
 	"regexp"
 	"slices"
 	"strings"
@@ -38,6 +39,7 @@ func NewConfiguration(language *tree_sitter.Language, tagsQuery []byte, localsQu
 	)
 	for i, captureName := range query.CaptureNames() {
 		ui := uint(i)
+		log.Println("captureName", captureName)
 
 		switch captureName {
 		case "doc":

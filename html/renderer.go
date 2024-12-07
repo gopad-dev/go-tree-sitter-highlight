@@ -11,7 +11,9 @@ import (
 
 	"github.com/tree-sitter/go-tree-sitter"
 
+	"go.gopad.dev/go-tree-sitter-highlight/folds"
 	"go.gopad.dev/go-tree-sitter-highlight/highlight"
+	"go.gopad.dev/go-tree-sitter-highlight/tags"
 )
 
 var (
@@ -162,7 +164,7 @@ type Fold struct {
 	Range tree_sitter.Range
 }
 
-// Renderer renders the code to the writer with spans for each highlight capture.
+// Render renders the code to the writer with spans for each highlight capture.
 // The [AttributeCallback] is used to generate the classes or inline styles for each span.
 func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], source []byte, callback AttributeCallback) error {
 	var (
@@ -288,6 +290,7 @@ func (r *Renderer) RenderCSS(w io.Writer, theme map[string]string) error {
 	return nil
 }
 
+// RenderLineNumbers renders the line numbers to the writer. The lineCount is the number of lines in the source.
 func (r *Renderer) RenderLineNumbers(w io.Writer, lineCount int) error {
 	if _, err := fmt.Fprintf(w, "<div class=\"%slns\">", r.ClassNamePrefix); err != nil {
 		return err
@@ -315,7 +318,7 @@ func (r *Renderer) themeAttributeCallback(captureNames []string) AttributeCallba
 }
 
 // RenderDocument renders a full HTML document with the code and theme embedded.
-func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event, error], title string, source []byte, captureNames []string, theme map[string]string) error {
+func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event, error], allTags iter.Seq2[tags.Tag, error], allFolds iter.Seq2[folds.Fold, error], title string, source []byte, captureNames []string, theme map[string]string) error {
 	if _, err := fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", html.EscapeString(title)); err != nil {
 		return err
 	}

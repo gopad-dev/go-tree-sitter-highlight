@@ -78,19 +78,19 @@ type localScope struct {
 	LocalDefs []localDef
 }
 
-func New() *Context {
-	return &Context{
+func New() *Tagger {
+	return &Tagger{
 		Parser: tree_sitter.NewParser(),
 		cursor: tree_sitter.NewQueryCursor(),
 	}
 }
 
-type Context struct {
+type Tagger struct {
 	Parser *tree_sitter.Parser
 	cursor *tree_sitter.QueryCursor
 }
 
-func (c *Context) GenerateTags(ctx context.Context, cfg Configuration, source []byte) (iter.Seq2[Tag, error], bool, error) {
+func (c *Tagger) Tags(ctx context.Context, cfg Configuration, source []byte) (iter.Seq2[Tag, error], bool, error) {
 	err := c.Parser.SetLanguage(cfg.Language)
 	if err != nil {
 		return nil, false, err

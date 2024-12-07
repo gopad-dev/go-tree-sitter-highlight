@@ -11,7 +11,7 @@ import (
 	"github.com/tree-sitter/tree-sitter-go/bindings/go"
 )
 
-func TestContext_GenerateTags(t *testing.T) {
+func TestTagger_Tags(t *testing.T) {
 	source, err := os.ReadFile("../testdata/test.go")
 	require.NoError(t, err)
 
@@ -28,7 +28,7 @@ func TestContext_GenerateTags(t *testing.T) {
 	tagsContext := New()
 
 	ctx := context.Background()
-	tags, _, err := tagsContext.GenerateTags(ctx, *cfg, source)
+	tags, _, err := tagsContext.Tags(ctx, *cfg, source)
 	require.NoError(t, err)
 
 	for tag, err := range tags {

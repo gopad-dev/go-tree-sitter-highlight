@@ -4,7 +4,7 @@
   (function_declaration
     name: (identifier) @name) @definition.function
   (#strip! @doc "^//\\s*")
-  (#set-adjacent! @doc @definition.function)
+  (#select-adjacent! @doc @definition.function)
 )
 
 (
@@ -14,7 +14,7 @@
     receiver: (parameter_list (parameter_declaration type: (pointer_type (type_identifier) @scope)))
     name: (field_identifier) @name) @definition.method
   (#strip! @doc "^//\\s*")
-  (#set-adjacent! @doc @definition.method)
+  (#select-adjacent! @doc @definition.method)
 )
 
 (
@@ -24,7 +24,7 @@
     receiver: (parameter_list (parameter_declaration type: (type_identifier) @scope))
     name: (field_identifier) @name) @definition.method
   (#strip! @doc "^//\\s*")
-  (#set-adjacent! @doc @definition.method)
+  (#select-adjacent! @doc @definition.method)
 )
 
 (
@@ -38,7 +38,7 @@
           (field_declaration
             name: (field_identifier) @name) @definition.field))))
   (#strip! @doc "^//\\s*")
-  (#set-adjacent! @doc @definition.method)
+  (#select-adjacent! @doc @definition.field)
 )
 
 (call_expression
@@ -49,31 +49,66 @@
     (parenthesized_expression (selector_expression field: (field_identifier) @name))
   ]) @reference.call
 
-(type_spec
-  name: (type_identifier) @name) @definition.type
-
-(type_identifier) @name @reference.type
+(call_expression
+  function: [
+    (selector_expression operand: (identifier) @name)
+    (parenthesized_expression (selector_expression operand: (identifier) @name))
+  ])
 
 (
   (comment)* @doc
   .
   (package_clause "package" (package_identifier) @name) @definition.module
   (#strip! @doc "^//\\s*")
-  (#set-adjacent! @doc @definition.method)
+  (#select-adjacent! @doc @definition.module)
 )
 
-(import_declaration (import_spec) @name)
+(import_declaration (import_spec path: (interpreted_string_literal (interpreted_string_literal_content) @name))) @definition.import
 
-(var_declaration (var_spec name: (identifier) @name))
+(
+  (comment)* @doc
+  .
+  (var_declaration (var_spec name: (identifier) @name)) @definition.variable
+  (#strip! @doc "^//\\s*")
+  (#select-adjacent! @doc @definition.variable)
+)
 
-(const_declaration (const_spec name: (identifier) @name))
+(
+  (comment)* @doc
+  .
+  (const_declaration (const_spec name: (identifier) @name)) @definition.constant
+  (#strip! @doc "^//\\s*")
+  (#select-adjacent! @doc @definition.constant)
+)
 
-(type_declaration (type_spec name: (type_identifier) @name type: (struct_type))) @definition.class
+(
+  (comment)* @doc
+  .
+  (type_declaration (type_spec name: (type_identifier) @name type: (struct_type))) @definition.class
+  (#strip! @doc "^//\\s*")
+  (#select-adjacent! @doc @definition.class)
+)
 
-(type_declaration (type_spec name: (type_identifier) @name type: (interface_type))) @definition.interface
+(
+  (comment)* @doc
+  .
+  (type_declaration (type_spec name: (type_identifier) @name type: (interface_type))) @definition.interface
+  (#strip! @doc "^//\\s*")
+  (#select-adjacent! @doc @definition.interface)
+)
 
-(type_declaration (type_spec name: (type_identifier) @name type: [(map_type) (channel_type) (slice_type) (array_type) (pointer_type) (type_identifier)])) @definition.type
+(
+  (comment)* @doc
+  .
+  (type_declaration (type_spec name: (type_identifier) @name type: [(map_type) (channel_type) (slice_type) (array_type) (pointer_type) (type_identifier)])) @definition.type
+  (#strip! @doc "^//\\s*")
+  (#select-adjacent! @doc @definition.type)
+)
 
 (method_elem name: (field_identifier) @name) @definition.method
 
-(const_declaration (const_spec name: (identifier) @name value: (_) @definition.constant))
+(argument_list (identifier) @name)
+
+(type_spec name: (type_identifier) @name) @definition.type
+
+(type_identifier) @name @reference.type

@@ -141,9 +141,6 @@ func newIterLayers(
 			}
 
 			queryCaptures := peekiter.NewQueryCaptures(cursor.Captures(config.Query, tree.RootNode(), source))
-			if _, _, ok := queryCaptures.Peek(); !ok {
-				continue
-			}
 
 			result = append(result, &iterLayer{
 				Tree:              tree,

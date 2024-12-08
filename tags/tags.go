@@ -54,6 +54,29 @@ func (t Tag) IsIgnored() bool {
 	return t.Range.Start == ^uint(0)
 }
 
+func (t Tag) Name(source []byte) string {
+	return string(source[t.NameRange.Start:t.NameRange.End])
+}
+
+func (t Tag) ScopeName(source []byte) string {
+	if t.ScopeRange == nil {
+		return ""
+	}
+	return string(source[t.ScopeRange.Start:t.ScopeRange.End])
+}
+
+func (t Tag) FullName(source []byte) string {
+	name := t.Name(source)
+	if t.ScopeRange != nil {
+		name = t.ScopeName(source) + "." + name
+	}
+	return name
+}
+
+func (t Tag) Content(source []byte) string {
+	return string(source[t.Range.Start:t.Range.End])
+}
+
 type localDef struct {
 	Name []byte
 }

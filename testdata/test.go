@@ -18,6 +18,9 @@ type foo struct {
 // bar is a method of foo
 func (f *foo) bar() {}
 
+// bar2 is a method of foo
+func (f foo) bar2() {}
+
 // TODO: Add more comments
 func main() {
 	fmt.Println(msg1, msg2)

@@ -147,6 +147,10 @@ type Configuration struct {
 	patternInfo                 []patternInfoItem
 }
 
+func (c Configuration) SyntaxTypeNames() []string {
+	return c.syntaxTypeNames
+}
+
 func (c Configuration) SyntaxTypeName(id uint) string {
 	return c.syntaxTypeNames[id]
 }

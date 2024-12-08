@@ -136,7 +136,9 @@ func (t *iterator) next() (*Tag, error) {
 				}
 
 				var tag Tag
-				if tagNode != nil {
+				if isIgnored {
+					tag = newIgnoredTag(nameRange, scopeRange)
+				} else {
 					if nameNode.HasError() {
 						continue
 					}
@@ -194,11 +196,15 @@ func (t *iterator) next() (*Tag, error) {
 						}
 					}
 
-					rngStart, rngEnd := tagNode.ByteRange()
-					tagRange := byteRange{
-						Start: min(rngStart, nameRange.Start),
-						End:   max(rngEnd, nameRange.End),
+					tagRange := nameRange
+					if tagNode != nil {
+						rngStart, rngEnd := tagNode.ByteRange()
+						tagRange.Start = min(rngStart, tagRange.Start)
+						tagRange.End = min(rngEnd, tagRange.End)
+					} else {
+						// continue
 					}
+
 					span := pointRange{
 						Start: nameNode.StartPosition(),
 						End:   nameNode.EndPosition(),
@@ -250,10 +256,6 @@ func (t *iterator) next() (*Tag, error) {
 						IsDefinition:     isDefinition,
 						SyntaxTypeID:     syntaxTypeID,
 					}
-				} else if isIgnored {
-					tag = newIgnoredTag(nameRange, scopeRange)
-				} else {
-					continue
 				}
 
 				// Only create one tag per node. The tag queue is sorted by node position

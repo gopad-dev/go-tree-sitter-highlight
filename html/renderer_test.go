@@ -16,7 +16,7 @@ import (
 )
 
 var cssTheme = map[string]string{
-	"variable":     "color: #DEAE60;",
+	"variable":     "color: #DEC560;",
 	"function":     "color: #73FBF1;",
 	"string":       "color: #B8E466;",
 	"keyword":      "color: #A578EA;",
@@ -101,6 +101,7 @@ func TestRenderer_Render(t *testing.T) {
 	}()
 
 	renderer := NewRenderer()
-	err = renderer.RenderDocument(f, events, allTags, allFolds, "test.go", source, captureNames, cssTheme)
+	renderer.DebugTags = true
+	err = renderer.RenderDocument(f, events, allTags, allFolds, "test.go", source, captureNames, tagsCfg.SyntaxTypeNames(), cssTheme)
 	require.NoError(t, err)
 }

@@ -1,6 +1,7 @@
 package tags
 
 import (
+	"bytes"
 	"context"
 	"iter"
 
@@ -42,6 +43,7 @@ type Tag struct {
 	Range            byteRange
 	NameRange        byteRange
 	ScopeRange       *byteRange
+	LocalScopeRange  tree_sitter.Range
 	LineRange        byteRange
 	Span             pointRange
 	UTF16ColumnRange byteRange
@@ -100,7 +102,7 @@ type pointRange struct {
 
 type localScope struct {
 	Inherits  bool
-	Range     byteRange
+	Range     tree_sitter.Range
 	LocalDefs []localDef
 }
 
@@ -136,9 +138,17 @@ func (c *Tagger) Tags(ctx context.Context, cfg Configuration, source []byte) (it
 		Scopes: []localScope{
 			{
 				Inherits: false,
-				Range: byteRange{
-					Start: 0,
-					End:   uint(len(source)),
+				Range: tree_sitter.Range{
+					StartByte: 0,
+					StartPoint: tree_sitter.Point{
+						Row:    0,
+						Column: 0,
+					},
+					EndByte: uint(len(source)),
+					EndPoint: tree_sitter.Point{
+						Row:    uint(bytes.Count(source, []byte("\n"))),
+						Column: uint(len(source[bytes.LastIndexByte(source, '\n'):])) - 1,
+					},
 				},
 				LocalDefs: nil,
 			},

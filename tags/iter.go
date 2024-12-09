@@ -66,22 +66,19 @@ func (t *iterator) next() (*Tag, error) {
 			if match.PatternIndex < t.Cfg.tagsPatternIndex {
 				for _, capture := range match.Captures {
 					index := uint(capture.Index)
-					captureRangeStart, captureRangeEnd := capture.Node.ByteRange()
+					captureRange := capture.Node.Range()
 					if t.Cfg.localScopeCaptureIndex != nil && index == *t.Cfg.localScopeCaptureIndex {
 						t.Scopes = append(t.Scopes, localScope{
-							Inherits: patternInfo.LocalScopeInherits,
-							Range: byteRange{
-								Start: captureRangeStart,
-								End:   captureRangeEnd,
-							},
+							Inherits:  patternInfo.LocalScopeInherits,
+							Range:     captureRange,
 							LocalDefs: nil,
 						})
 					} else if t.Cfg.localDefinitionCaptureIndex != nil && index == *t.Cfg.localDefinitionCaptureIndex {
 						if i := slices.IndexFunc(t.Scopes, func(scope localScope) bool {
-							return scope.Range.Start <= captureRangeStart && captureRangeEnd >= scope.Range.End
+							return scope.Range.StartByte <= captureRange.StartByte && captureRange.EndByte >= scope.Range.EndByte
 						}); i > -1 {
 							t.Scopes[i].LocalDefs = append(t.Scopes[i].LocalDefs, localDef{
-								Name: t.Source[captureRangeStart:captureRangeEnd],
+								Name: t.Source[captureRange.StartByte:captureRange.EndByte],
 							})
 						}
 					}
@@ -146,7 +143,7 @@ func (t *iterator) next() (*Tag, error) {
 					if patternInfo.NameMustBeNonLocal {
 						var isLocal bool
 						for _, scope := range slices.Backward(t.Scopes) {
-							if scope.Range.Start <= nameRange.Start && scope.Range.End >= nameRange.End {
+							if scope.Range.StartByte <= nameRange.Start && scope.Range.EndByte >= nameRange.End {
 								if i := slices.IndexFunc(scope.LocalDefs, func(def localDef) bool {
 									return bytes.Equal(def.Name, t.Source[nameRange.Start:nameRange.End])
 								}); i > -1 {
@@ -249,6 +246,7 @@ func (t *iterator) next() (*Tag, error) {
 						Range:            tagRange,
 						NameRange:        nameRange,
 						ScopeRange:       scopeRange,
+						LocalScopeRange:  t.Scopes[len(t.Scopes)-1].Range,
 						LineRange:        lineRange,
 						Span:             span,
 						UTF16ColumnRange: utf16ColumnRange,

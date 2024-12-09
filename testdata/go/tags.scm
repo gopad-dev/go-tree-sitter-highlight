@@ -41,16 +41,20 @@
   name: (identifier) @scope
   parameters: (parameter_list (parameter_declaration name: (identifier) @name))) @definition.variable
 
+(func_literal
+  parameters: (parameter_list (parameter_declaration name: (identifier) @name))) @definition.variable
+
+(binary_expression
+  left: (identifier) @name)
+
 (
   (comment)* @doc
   .
-  (type_declaration
-    (type_spec
-      name: (type_identifier) @scope
-      type: (struct_type
-        (field_declaration_list
-          (field_declaration
-            name: (field_identifier) @name) @definition.field))))
+  (type_declaration (type_spec
+    name: (type_identifier) @scope
+    type: (struct_type
+      (field_declaration_list (field_declaration
+        name: (field_identifier) @name) @definition.field))))
   (#strip! @doc "^//\\s*")
   (#select-adjacent! @doc @definition.field)
 )
@@ -87,6 +91,9 @@
   (#select-adjacent! @doc @definition.variable)
 )
 
+(short_var_declaration
+  left: (expression_list (identifier) @name)) @definition.variable
+
 (
   (comment)* @doc
   .
@@ -98,9 +105,9 @@
 (
   (comment)* @doc
   .
-  (type_declaration (type_spec name: (type_identifier) @name type: (struct_type))) @definition.class
+  (type_declaration (type_spec name: (type_identifier) @name type: (struct_type))) @definition.struct
   (#strip! @doc "^//\\s*")
-  (#select-adjacent! @doc @definition.class)
+  (#select-adjacent! @doc @definition.struct)
 )
 
 (
@@ -119,11 +126,22 @@
   (#select-adjacent! @doc @definition.type)
 )
 
-(unary_expression
-  operand: (composite_literal
+(composite_literal
     type: (type_identifier) @scope
     body: (literal_value (keyed_element
-      key: (literal_element (identifier) @name))))) @reference.field
+      key: (literal_element (identifier) @name)))) @reference.field
+
+(composite_literal
+  body: (literal_value (keyed_element
+    value: (literal_element (identifier) @name))))
+
+(expression_list (identifier) @name)
+
+(selector_expression
+  operand: (identifier) @name)
+
+(selector_expression
+  field: (field_identifier) @name)
 
 (method_elem name: (field_identifier) @name) @definition.method
 

@@ -1,0 +1,151 @@
+/* Highlight Styles */
+.{{ .ClassNamePrefix }}hl {
+    color: {{ .Theme.Color }};
+    background-color: {{ .Theme.BackgroundColor }};
+    tab-size: {{ .Theme.TabSize }};
+}
+
+.{{ .ClassNamePrefix }}hl * {
+    box-sizing: border-box;
+}
+
+/* Line Number Styles */
+.{{ .ClassNamePrefix }}lns {
+    float: left;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+    color: {{ .Theme.LinesColor }};
+    background-color: {{ .Theme.LinesBackgroundColor }};
+}
+
+.{{ .ClassNamePrefix }}ln {
+    display: inline-block;
+    text-align: right;
+    text-decoration: none;
+    user-select: none;
+    color: unset;
+}
+
+.{{ .ClassNamePrefix }}ln:hover {
+    text-decoration: underline;
+}
+
+.{{ .ClassNamePrefix }}ln:focus {
+    outline: none;
+}
+
+/* Code Styles */
+.{{ .ClassNamePrefix }}code {
+    display: inline-block;
+}
+
+.{{ .ClassNamePrefix }}code summary {
+    list-style-type: none;
+}
+
+.{{ .ClassNamePrefix }}code summary::before {
+    content: "\1F882";
+    position: absolute;
+}
+
+.{{ .ClassNamePrefix }}code details[open] summary::before {
+    content: "\1F883";
+}
+
+
+.{{ .ClassNamePrefix }}ref {
+    color: unset;
+    text-decoration: none;
+}
+
+.{{ .ClassNamePrefix }}ref:hover {
+    text-decoration: underline;
+}
+
+.{{ .ClassNamePrefix }}def {
+    color: unset;
+    text-decoration: none;
+}
+
+.{{ .ClassNamePrefix }}def:hover {
+    text-decoration: underline;
+}
+
+.{{ .ClassNamePrefix }}def:target {
+    background-color: {{ .Theme.HighlightBackgroundColor }};
+    padding: 0 0.2rem;
+    margin: 0 -0.2rem;
+    border-radius: 0.2rem;
+}
+
+.{{ .ClassNamePrefix }}l {
+    display: inline-block;
+    width: 100%;
+    padding-left: 0.5rem;
+    padding-right: 0.5rem;
+}
+
+.{{ .ClassNamePrefix }}l:before {
+    content: "\200b";
+    user-select: none;
+}
+
+.{{ .ClassNamePrefix }}l:target {
+    background-color: {{ .Theme.SelectedLineBackgroundColor }};
+}
+
+/* Symbol Styles */
+.{{ .ClassNamePrefix }}symbols {
+    float: right;
+    width: 16rem;
+    padding: 0.5rem;
+    margin: 0;
+    white-space: normal;
+}
+
+.{{ .ClassNamePrefix }}symbols li {
+    list-style-type: none;
+    padding: 0.5rem 0.5rem;
+    border-radius: 0.5rem;
+}
+
+.{{ .ClassNamePrefix }}symbols li:hover {
+    background-color: {{ .Theme.SymbolKindHoverBackgroundColor }};
+}
+
+.{{ .ClassNamePrefix }}symbols li + details[open] {
+    background-color: {{ .Theme.SymbolKindHoverBackgroundColor }};
+}
+
+.{{ .ClassNamePrefix }}symbols li a {
+    color: unset;
+    text-decoration: none;
+}
+
+.{{ .ClassNamePrefix }}symbols li a:hover {
+    text-decoration: underline;
+}
+
+.{{ .ClassNamePrefix }}symbols li details {
+    white-space: normal;
+}
+
+.{{ .ClassNamePrefix }}symbols li details[open] p {
+    padding: 0.5rem;
+    margin: 0;
+}
+
+.{{ .ClassNamePrefix }}symbols li details summary {
+    cursor: pointer;
+}
+
+.{{ .ClassNamePrefix }}symbols li details[open] summary {
+    margin-bottom: 0.5rem;
+}
+
+.{{ .ClassNamePrefix }}symbol-kind {
+    background-color: {{ .Theme.SymbolKindBackgroundColor }};
+    padding: 0.2rem 0.3rem;
+    border-radius: 0.2rem;
+    user-select: none;
+}

@@ -27,6 +27,20 @@
   (#select-adjacent! @doc @definition.method)
 )
 
+(method_declaration
+  receiver: (parameter_list (parameter_declaration type: (type_identifier) @scope))
+  name: (field_identifier) @scope
+  parameters: (parameter_list (parameter_declaration name: (identifier) @name))) @definition.variable
+
+(method_declaration
+  receiver: (parameter_list (parameter_declaration type: (pointer_type (type_identifier) @scope)))
+  name: (field_identifier) @scope
+  parameters: (parameter_list (parameter_declaration name: (identifier) @name))) @definition.variable
+
+(function_declaration
+  name: (identifier) @scope
+  parameters: (parameter_list (parameter_declaration name: (identifier) @name))) @definition.variable
+
 (
   (comment)* @doc
   .
@@ -104,6 +118,12 @@
   (#strip! @doc "^//\\s*")
   (#select-adjacent! @doc @definition.type)
 )
+
+(unary_expression
+  operand: (composite_literal
+    type: (type_identifier) @scope
+    body: (literal_value (keyed_element
+      key: (literal_element (identifier) @name))))) @reference.field
 
 (method_elem name: (field_identifier) @name) @definition.method
 

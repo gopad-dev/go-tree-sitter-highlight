@@ -2,63 +2,58 @@ package html
 
 import (
 	"bytes"
+	_ "embed"
 	"fmt"
 	"html"
 	"io"
 	"iter"
 	"slices"
+	"strings"
+	"text/template"
 	"unicode/utf8"
-
-	"github.com/tree-sitter/go-tree-sitter"
 
 	"go.gopad.dev/go-tree-sitter-highlight/folds"
 	"go.gopad.dev/go-tree-sitter-highlight/highlight"
-	"go.gopad.dev/go-tree-sitter-highlight/internal/teeiter"
 	"go.gopad.dev/go-tree-sitter-highlight/tags"
 )
+
+//go:embed templates/css.tmpl
+var css string
+
+var similarSyntaxTypeNames = map[string][]string{
+	"call": {"function", "method"},
+	"type": {"class", "interface"},
+}
 
 // AttributeCallback is a callback function that returns the html element attributes for a highlight span.
 // This can be anything from classes, ids, or inline styles.
 type AttributeCallback func(h highlight.Highlight, languageName string) string
 
-type Theme struct {
-	TabSize                     int
-	BackgroundColor             string
-	Color                       string
-	LineNumbersBackgroundColor  string
-	LineNumberColor             string
-	SelectedLineBackgroundColor string
-	HighlightBackgroundColor    string
-}
-
 // NewRenderer returns a new Renderer.
-func NewRenderer() *Renderer {
+func NewRenderer(options *Options) *Renderer {
+	var opts Options
+	if options == nil {
+		opts = defaultOptions()
+	} else {
+		opts = *options
+	}
+
+	if opts.TagIDCallback == nil {
+		opts.TagIDCallback = defaultTagIDCallback
+	}
+
+	cssTmpl := template.Must(template.New("css").Parse(css))
+
 	return &Renderer{
-		ClassNamePrefix: "hl-",
-		IDPrefix:        "code-",
-		LineNumbers:     true,
-		Symbols:         true,
-		Theme: Theme{
-			TabSize:                     4,
-			BackgroundColor:             "#212122",
-			Color:                       "#f8f8f2",
-			LineNumbersBackgroundColor:  "#2b2b2b",
-			LineNumberColor:             "#8b8b8b",
-			SelectedLineBackgroundColor: "#43494a",
-			HighlightBackgroundColor:    "#FFEF9C",
-		},
-		DebugTags: false,
+		cssTmpl: cssTmpl,
+		Options: opts,
 	}
 }
 
 // Renderer is a renderer that outputs HTML.
 type Renderer struct {
-	ClassNamePrefix string
-	IDPrefix        string
-	LineNumbers     bool
-	Symbols         bool
-	Theme           Theme
-	DebugTags       bool
+	cssTmpl *template.Template
+	Options Options
 }
 
 func (r *Renderer) addText(w io.Writer, line int, source []byte, hs []highlight.Highlight, languages []string, callback AttributeCallback) error {
@@ -87,7 +82,7 @@ func (r *Renderer) addText(w io.Writer, line int, source []byte, hs []highlight.
 
 			line++
 
-			if _, err := fmt.Fprintf(w, "<span id=\"L%d\" class=\"%sl\">", line, r.ClassNamePrefix); err != nil {
+			if _, err := fmt.Fprintf(w, "<span id=\"L%d\" class=\"%sl\">", line, r.Options.ClassNamePrefix); err != nil {
 				return err
 			}
 
@@ -146,20 +141,85 @@ func (r *Renderer) endHighlight(w io.Writer) error {
 	return err
 }
 
-type Fold struct {
-	Range tree_sitter.Range
+func (r *Renderer) themeAttributeCallback(captureNames []string) AttributeCallback {
+	return func(h highlight.Highlight, languageName string) string {
+		if h == highlight.DefaultHighlight {
+			return ""
+		}
+
+		return fmt.Sprintf(`class="%s%s"`, r.Options.ClassNamePrefix, captureNames[h])
+	}
+}
+
+func findDefForRef(ref tags.Tag, allTags []tags.Tag, source []byte, syntaxTypeNames []string) *tags.Tag {
+	for _, tag := range allTags {
+		if !tag.IsDefinition {
+			continue
+		}
+
+		if tag.Name(source) == ref.Name(source) {
+			if ref.SyntaxTypeID == 0 || tag.SyntaxTypeID == ref.SyntaxTypeID {
+				return &tag
+			}
+
+			syntaxName := syntaxTypeNames[ref.SyntaxTypeID]
+			names, ok := similarSyntaxTypeNames[syntaxName]
+			if ok && slices.Contains(names, syntaxTypeNames[tag.SyntaxTypeID]) {
+				return &tag
+			}
+		}
+	}
+
+	return nil
+}
+
+// RenderCSS renders the css classes for a theme to the writer.
+func (r *Renderer) RenderCSS(w io.Writer, theme Theme) error {
+	var cssData = struct {
+		ClassNamePrefix string
+		IDPrefix        string
+		Theme           Theme
+	}{
+		ClassNamePrefix: r.Options.ClassNamePrefix,
+		IDPrefix:        r.Options.IDPrefix,
+		Theme:           theme,
+	}
+	if err := r.cssTmpl.Execute(w, cssData); err != nil {
+		return err
+	}
+
+	for name, style := range theme.CodeStyles {
+		if _, err := fmt.Fprintf(w, ".%s%s {%s}\n", r.Options.ClassNamePrefix, name, style); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// RenderLineNumbers renders the line numbers to the writer. The lineCount is the number of lines in the source.
+func (r *Renderer) RenderLineNumbers(w io.Writer, lineCount int) error {
+	if _, err := fmt.Fprintf(w, "<div class=\"%slns\">", r.Options.ClassNamePrefix); err != nil {
+		return err
+	}
+
+	for i := range lineCount {
+		if _, err := fmt.Fprintf(w, "<a class=\"%sln\" href=\"#L%d\">%d</a>\n", r.Options.ClassNamePrefix, i+1, i+1); err != nil {
+			return err
+		}
+	}
+
+	_, err := fmt.Fprintf(w, "</div>")
+	return err
 }
 
 // Render renders the code to the writer with spans for each highlight capture.
 // The [AttributeCallback] is used to generate the classes or inline styles for each span.
-func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], allTags iter.Seq2[tags.Tag, error], allFolds iter.Seq2[folds.Fold, error], source []byte, callback AttributeCallback) error {
-	nextTag, closeTag := iter.Pull2(allTags)
+func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], allTags []tags.Tag, allFolds iter.Seq2[folds.Fold, error], source []byte, syntaxTypeNames []string, callback AttributeCallback) error {
+	nextTag, closeTag := iter.Pull(slices.Values(allTags))
 	defer closeTag()
 
-	currentTag, err, currentTagOk := nextTag()
-	if err != nil {
-		return fmt.Errorf("error while rendering: %w", err)
-	}
+	currentTag, currentTagOk := nextTag()
 
 	var (
 		highlights []highlight.Highlight
@@ -168,7 +228,7 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 	)
 
 	line++
-	if _, err := fmt.Fprintf(w, "<span id=\"L%d\" class=\"%sl\">", line, r.ClassNamePrefix); err != nil {
+	if _, err := fmt.Fprintf(w, "<span id=\"L%d\" class=\"%sl\">", line, r.Options.ClassNamePrefix); err != nil {
 		return err
 	}
 
@@ -204,10 +264,7 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 			for i := e.StartByte; i < e.EndByte; i++ {
 				if i > currentTag.NameRange.Start {
 					for {
-						currentTag, err, currentTagOk = nextTag()
-						if err != nil {
-							return err
-						}
+						currentTag, currentTagOk = nextTag()
 						if !currentTagOk {
 							break
 						}
@@ -219,22 +276,35 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 
 				if i == currentTag.NameRange.Start {
 					name := html.EscapeString(currentTag.Name(source))
-					renderName := name
-					if r.DebugTags {
-						if currentTag.IsDefinition {
-							renderName = "#" + name
-						} else {
-							renderName = "@" + name
-						}
-					}
+
+					i = currentTag.NameRange.End - 1
 
 					if currentTag.IsDefinition {
-						name = fmt.Sprintf("<a id=\"%s%s\" class=\"%sdef\" href=\"#%s%s\">%s</a>", r.IDPrefix, name, r.ClassNamePrefix, r.IDPrefix, name, renderName)
+						renderName := name
+						if r.Options.DebugTags {
+							renderName = "#" + name
+						}
+						tagID := r.Options.TagIDCallback(currentTag, source, syntaxTypeNames)
+						name = fmt.Sprintf("<a id=\"%s%s\" class=\"%sdef\" href=\"#%s%s\">%s</a>", r.Options.IDPrefix, tagID, r.Options.ClassNamePrefix, r.Options.IDPrefix, tagID, renderName)
+						text = append(text, []byte(name)...)
+						continue
 					} else {
-						name = fmt.Sprintf("<a class=\"%sref\" href=\"#%s%s\">%s</a>", r.ClassNamePrefix, r.IDPrefix, name, renderName)
+						renderName := name
+
+						def := findDefForRef(currentTag, allTags, source, syntaxTypeNames)
+						if r.Options.DebugTags {
+							renderName = "@" + name
+							if def == nil {
+								renderName = "!" + renderName
+								def = &currentTag
+							}
+						}
+						if def != nil {
+							tagID := r.Options.TagIDCallback(*def, source, syntaxTypeNames)
+							name = fmt.Sprintf("<a class=\"%sref\" href=\"#%s%s\">%s</a>", r.Options.ClassNamePrefix, r.Options.IDPrefix, tagID, renderName)
+						}
 					}
 					text = append(text, []byte(name)...)
-					i = currentTag.NameRange.End - 1
 					continue
 				}
 				text = append(text, []byte(html.EscapeString(string(source[i])))...)
@@ -251,134 +321,84 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 	return nil
 }
 
-// RenderCSS renders the css classes for a theme to the writer.
-func (r *Renderer) RenderCSS(w io.Writer, theme map[string]string) error {
-	if r.LineNumbers {
-		if _, err := fmt.Fprintf(w, ".%shl{background-color:%s;color:%s;tab-size:%d;}\n"+
-			".%slns {float: left;padding-left:0.5rem;padding-right: 0.5rem;background-color:%s;color:%s;}\n"+
-			".%scode {display:inline-block;}\n"+
-			".%scode summary {list-style-type: none;}\n"+
-			".%scode summary::before {content:\"🞂\";position:absolute;}\n"+
-			".%scode details[open] summary::before{content:\"🞃\";}\n"+
-			".%ssymbols {float:right;width:10rem;}\n"+
-			".%ssymbols li {list-style-type: none;}\n"+
-			".%ssymbols li a {color:unset;text-decoration:none;}\n"+
-			".%sref{color:unset;text-decoration:none;}\n"+
-			".%sref:hover {text-decoration:underline;}\n"+
-			".%sdef{color:unset;text-decoration:none;}\n"+
-			".%sdef:hover {text-decoration:underline;}\n"+
-			".%sdef:target{background-color:%s}\n"+
-			".%sln {display:inline-block;text-align:right;text-decoration:none;user-select:none;color:unset;}\n"+
-			".%sln:hover {text-decoration:underline;}\n"+
-			".%sln:focus {outline: none;}\n"+
-			".%sl {display:inline-block;width:100%%;padding-left:0.5rem;padding-right:0.5rem;}\n"+
-			".%sl:before {content:\"\\200b\";user-select:none;}\n"+
-			".%sl:target {background-color:%s;}\n",
-			r.ClassNamePrefix, r.Theme.BackgroundColor, r.Theme.Color, r.Theme.TabSize,
-			r.ClassNamePrefix, r.Theme.LineNumbersBackgroundColor, r.Theme.LineNumberColor,
-			r.ClassNamePrefix, r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix, r.Theme.HighlightBackgroundColor,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix,
-			r.ClassNamePrefix, r.Theme.SelectedLineBackgroundColor,
-		); err != nil {
-			return err
-		}
-	}
-
-	for name, style := range theme {
-		_, err := fmt.Fprintf(w, ".%s%s {%s}\n", r.ClassNamePrefix, name, style)
-		if err != nil {
-			return err
-		}
-	}
-
-	return nil
-}
-
-// RenderLineNumbers renders the line numbers to the writer. The lineCount is the number of lines in the source.
-func (r *Renderer) RenderLineNumbers(w io.Writer, lineCount int) error {
-	if _, err := fmt.Fprintf(w, "<div class=\"%slns\">", r.ClassNamePrefix); err != nil {
+// RenderSymbols renders the symbols list to the writer.
+func (r *Renderer) RenderSymbols(w io.Writer, allTags []tags.Tag, source []byte, syntaxTypeNames []string, theme Theme) error {
+	if _, err := fmt.Fprintf(w, "<ul class=\"%ssymbols\">\n", r.Options.ClassNamePrefix); err != nil {
 		return err
 	}
 
-	for i := range lineCount {
-		if _, err := fmt.Fprintf(w, "<a class=\"%sln\" href=\"#L%d\">%d</a>\n", r.ClassNamePrefix, i+1, i+1); err != nil {
-			return err
-		}
-	}
-
-	_, err := fmt.Fprintf(w, "</div>")
-	return err
-}
-
-func (r *Renderer) themeAttributeCallback(captureNames []string) AttributeCallback {
-	return func(h highlight.Highlight, languageName string) string {
-		if h == highlight.DefaultHighlight {
-			return ""
-		}
-
-		return fmt.Sprintf(`class="%s%s"`, r.ClassNamePrefix, captureNames[h])
-	}
-
-}
-
-func (r *Renderer) RenderSymbols(w io.Writer, allTags iter.Seq2[tags.Tag, error], source []byte, syntaxTypeNames []string) ([]tags.Tag, error) {
-	var symbols []tags.Tag
-
-	if _, err := fmt.Fprintf(w, "<ul class=\"%ssymbols\">\n", r.ClassNamePrefix); err != nil {
-		return nil, err
-	}
-
-	for tag, err := range allTags {
-		if err != nil {
-			return nil, err
-		}
-
-		symbols = append(symbols, tag)
+	for _, tag := range allTags {
+		symbolName := syntaxTypeNames[tag.SyntaxTypeID]
 
 		if !tag.IsDefinition {
 			continue
 		}
 
-		fmt.Fprintf(w, "<li>")
-
-		if tag.Docs != "" {
-			fmt.Fprintf(w, "<details><summary>")
+		globalSymbol, ok := r.Options.GlobalSymbols[symbolName]
+		if !ok {
+			continue
 		}
 
-		fmt.Fprintf(w, "<a href=\"#%s%s\"><span>%s</span> <span>%s</span></a>", r.IDPrefix, tag.Name(source), syntaxTypeNames[tag.SyntaxTypeID], tag.FullName(source))
+		for {
+			_, ok = theme.CodeStyles[globalSymbol]
+			if ok {
+				break
+			}
 
-		if tag.Docs != "" {
-			fmt.Fprintf(w, "</summary>%s</details>", tag.Docs)
+			i := strings.Index(globalSymbol, ".")
+			if i == -1 {
+				break
+			}
+
+			globalSymbol = globalSymbol[:i]
 		}
 
-		if _, err = fmt.Fprintf(w, "<li>\n"); err != nil {
-			return nil, err
+		if _, err := fmt.Fprintf(w, "<li>"); err != nil {
+			return err
+		}
+
+		if tag.Docs != "" {
+			if _, err := fmt.Fprintf(w, "<details name=\"symbol\"><summary>"); err != nil {
+				return err
+			}
+		}
+
+		if _, err := fmt.Fprintf(w, "<span class=\"%s%s %ssymbol-kind\">%s</span> ", r.Options.ClassNamePrefix, globalSymbol, r.Options.ClassNamePrefix, symbolName); err != nil {
+			return err
+		}
+
+		if _, err := fmt.Fprintf(w, "<a href=\"#%s%s\">%s</a>", r.Options.IDPrefix, r.Options.TagIDCallback(tag, source, syntaxTypeNames), tag.FullName(source)); err != nil {
+			return err
+		}
+
+		if tag.Docs != "" {
+			if _, err := fmt.Fprintf(w, "</summary><p>%s</p></details>", tag.Docs); err != nil {
+				return err
+			}
+		}
+
+		if _, err := fmt.Fprintf(w, "</li>\n"); err != nil {
+			return err
 		}
 	}
 
 	if _, err := fmt.Fprintf(w, "</ul>\n"); err != nil {
-		return nil, err
+		return err
 	}
 
-	return symbols, nil
+	return nil
 }
 
 // RenderDocument renders a full HTML document with the code and theme embedded.
-func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event, error], allTags iter.Seq2[tags.Tag, error], allFolds iter.Seq2[folds.Fold, error], title string, source []byte, captureNames []string, syntaxTypeNames []string, theme map[string]string) error {
+func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event, error], tagsIter iter.Seq2[tags.Tag, error], foldsIter iter.Seq2[folds.Fold, error], title string, source []byte, captureNames []string, syntaxTypeNames []string, theme Theme) error {
+	var allTags []tags.Tag
+	for tag, err := range tagsIter {
+		if err != nil {
+			return err
+		}
+		allTags = append(allTags, tag)
+	}
+
 	if _, err := fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", html.EscapeString(title)); err != nil {
 		return err
 	}
@@ -387,41 +407,35 @@ func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event,
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "</style>\n</head>\n<body>\n<div class=\"%shl\">", r.ClassNamePrefix); err != nil {
+	if _, err := fmt.Fprintf(w, "</style>\n</head>\n<body>\n<pre class=\"%shl\">", r.Options.ClassNamePrefix); err != nil {
 		return err
 	}
 
-	if r.LineNumbers {
+	if r.Options.ShowLineNumbers {
 		if err := r.RenderLineNumbers(w, bytes.Count(source, []byte("\n"))+1); err != nil {
 			return err
 		}
 	}
 
-	if _, err := fmt.Fprintf(w, "<pre><code class=\"%scode\">", r.ClassNamePrefix); err != nil {
+	if _, err := fmt.Fprintf(w, "<code class=\"%scode\">", r.Options.ClassNamePrefix); err != nil {
 		return err
 	}
 
-	renderAllTags := allTags
-	var symbolsAllTags iter.Seq2[tags.Tag, error]
-	if r.Symbols {
-		renderAllTags, symbolsAllTags = teeiter.New(allTags)
-	}
-
-	if err := r.Render(w, events, renderAllTags, allFolds, source, r.themeAttributeCallback(captureNames)); err != nil {
+	if err := r.Render(w, events, allTags, foldsIter, source, syntaxTypeNames, r.themeAttributeCallback(captureNames)); err != nil {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "</code></pre>"); err != nil {
+	if _, err := fmt.Fprintf(w, "</code>"); err != nil {
 		return err
 	}
 
-	if r.Symbols {
-		if _, err := r.RenderSymbols(w, symbolsAllTags, source, syntaxTypeNames); err != nil {
+	if r.Options.ShowSymbols {
+		if err := r.RenderSymbols(w, allTags, source, syntaxTypeNames, theme); err != nil {
 			return err
 		}
 	}
 
-	if _, err := fmt.Fprintf(w, "</div>\n</body>\n</html>\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "</pre>\n</body>\n</html>\n"); err != nil {
 		return err
 	}
 

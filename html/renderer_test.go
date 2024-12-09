@@ -15,13 +15,27 @@ import (
 	"go.gopad.dev/go-tree-sitter-highlight/tags"
 )
 
-var cssTheme = map[string]string{
-	"variable":     "color: #DEC560;",
-	"function":     "color: #73FBF1;",
-	"string":       "color: #B8E466;",
-	"keyword":      "color: #A578EA;",
-	"comment":      "color: #8A8A8A;",
-	"comment.todo": "color: #B8E466;",
+var theme = Theme{
+	TabSize:                        4,
+	BackgroundColor:                "#212122",
+	Color:                          "#f8f8f2",
+	LinesBackgroundColor:           "#2b2b2b",
+	LinesColor:                     "#8b8b8b",
+	SelectedLineBackgroundColor:    "#43494a",
+	HighlightBackgroundColor:       "#FFEF9C",
+	SymbolKindBackgroundColor:      "#363535",
+	SymbolKindHoverBackgroundColor: "#43494a",
+	CodeStyles: map[string]string{
+		"variable":        "color: #f8f8f2;",
+		"function":        "color: #73FBF1;",
+		"method":          "color: #73FBF1;",
+		"string":          "color: #B8E466;",
+		"type":            "color: #DEC560;",
+		"keyword":         "color: #A578EA;",
+		"comment":         "color: #8A8A8A;",
+		"comment.todo":    "color: #B8E466;",
+		"variable.member": "color: #d9112f;",
+	},
 }
 
 func loadInjection(t *testing.T, captureNames []string) highlight.InjectionCallback {
@@ -45,8 +59,8 @@ func loadInjection(t *testing.T, captureNames []string) highlight.InjectionCallb
 }
 
 func TestRenderer_Render(t *testing.T) {
-	captureNames := make([]string, 0, len(cssTheme))
-	for name := range cssTheme {
+	captureNames := make([]string, 0, len(theme.CodeStyles))
+	for name := range theme.CodeStyles {
 		captureNames = append(captureNames, name)
 	}
 
@@ -100,8 +114,8 @@ func TestRenderer_Render(t *testing.T) {
 		require.NoError(t, err)
 	}()
 
-	renderer := NewRenderer()
-	renderer.DebugTags = true
-	err = renderer.RenderDocument(f, events, allTags, allFolds, "test.go", source, captureNames, tagsCfg.SyntaxTypeNames(), cssTheme)
+	renderer := NewRenderer(nil)
+	renderer.Options.DebugTags = true
+	err = renderer.RenderDocument(f, events, allTags, allFolds, "test.go", source, captureNames, tagsCfg.SyntaxTypeNames(), theme)
 	require.NoError(t, err)
 }

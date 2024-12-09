@@ -28,8 +28,10 @@ func NewConfiguration(language *tree_sitter.Language, tagsQuery []byte, localsQu
 	}
 
 	var (
-		captureMap                  = make(map[uint]namedCaptureItem)
-		syntaxTypeNames             []string
+		captureMap      = make(map[uint]namedCaptureItem)
+		syntaxTypeNames = []string{
+			"unknown",
+		}
 		docCaptureIndex             *uint
 		nameCaptureIndex            *uint
 		scopeCaptureIndex           *uint

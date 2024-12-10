@@ -43,7 +43,6 @@ type Tag struct {
 	Range            byteRange
 	NameRange        byteRange
 	ScopeRange       *byteRange
-	LocalScopeRange  tree_sitter.Range
 	LineRange        byteRange
 	Span             pointRange
 	UTF16ColumnRange byteRange

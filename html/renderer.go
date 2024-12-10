@@ -25,6 +25,10 @@ var similarSyntaxTypeNames = map[string][]string{
 	"type": {"class", "interface", "struct"},
 }
 
+func escapeClassName(className string) string {
+	return strings.ReplaceAll(className, ".", "-")
+}
+
 // AttributeCallback is a callback function that returns the html element attributes for a highlight span.
 // This can be anything from classes, ids, or inline styles.
 type AttributeCallback func(h highlight.Highlight, languageName string) string
@@ -56,7 +60,7 @@ type Renderer struct {
 	Options Options
 }
 
-func (r *Renderer) addText(w io.Writer, line int, source []byte, hs []highlight.Highlight, languages []string, callback AttributeCallback) error {
+func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight.Highlight, languages []string, allFolds []folds.Fold, callback AttributeCallback) error {
 	for len(source) > 0 {
 		c, l := utf8.DecodeRune(source)
 		source = source[l:]
@@ -76,13 +80,37 @@ func (r *Renderer) addText(w io.Writer, line int, source []byte, hs []highlight.
 				return err
 			}
 
-			if _, err := w.Write([]byte(string(c))); err != nil {
-				return err
+			var skipNewLine bool
+			//if slices.ContainsFunc(allFolds, func(f folds.Fold) bool {
+			//	return f.LineRange.StartPoint.Row == line
+			//}) {
+			//	fmt.Fprintf(w, "</summary>")
+			//	skipNewLine = true
+			//}
+
+			if slices.ContainsFunc(allFolds, func(f folds.Fold) bool {
+				return f.LineRange.EndPoint.Row == line
+			}) {
+				fmt.Fprintf(w, "</details>")
+				skipNewLine = true
+			}
+
+			if !skipNewLine {
+				if _, err := w.Write([]byte(string(c))); err != nil {
+					return err
+				}
 			}
 
 			line++
 
-			if _, err := fmt.Fprintf(w, "<span id=\"L%d\" class=\"%sl\">", line, r.Options.ClassNamePrefix); err != nil {
+			if slices.ContainsFunc(allFolds, func(f folds.Fold) bool {
+				return f.LineRange.StartPoint.Row == line-1
+			}) {
+				//fmt.Fprintf(w, "<details open><summary>")
+				fmt.Fprintf(w, "<details open><summary></summary>")
+			}
+
+			if _, err := fmt.Fprintf(w, "<a href=\"#L%d\" class=\"%sln\">%d</a><span id=\"L%d\" class=\"%sl\">", line+1, r.Options.ClassNamePrefix, line+1, line+1, r.Options.ClassNamePrefix); err != nil {
 				return err
 			}
 
@@ -147,7 +175,7 @@ func (r *Renderer) themeAttributeCallback(captureNames []string) AttributeCallba
 			return ""
 		}
 
-		return fmt.Sprintf(`class="%s%s"`, r.Options.ClassNamePrefix, captureNames[h])
+		return fmt.Sprintf(`class="%s%s"`, r.Options.ClassNamePrefix, escapeClassName(captureNames[h]))
 	}
 }
 
@@ -167,7 +195,7 @@ func (r *Renderer) RenderCSS(w io.Writer, theme Theme) error {
 	}
 
 	for name, style := range theme.CodeStyles {
-		if _, err := fmt.Fprintf(w, ".%s%s {%s}\n", r.Options.ClassNamePrefix, name, style); err != nil {
+		if _, err := fmt.Fprintf(w, ".%s%s {%s}\n", r.Options.ClassNamePrefix, escapeClassName(name), style); err != nil {
 			return err
 		}
 	}
@@ -175,25 +203,9 @@ func (r *Renderer) RenderCSS(w io.Writer, theme Theme) error {
 	return nil
 }
 
-// RenderLineNumbers renders the line numbers to the writer. The lineCount is the number of lines in the source.
-func (r *Renderer) RenderLineNumbers(w io.Writer, lineCount int) error {
-	if _, err := fmt.Fprintf(w, "<div class=\"%slns\">", r.Options.ClassNamePrefix); err != nil {
-		return err
-	}
-
-	for i := range lineCount {
-		if _, err := fmt.Fprintf(w, "<a class=\"%sln\" href=\"#L%d\">%d</a>\n", r.Options.ClassNamePrefix, i+1, i+1); err != nil {
-			return err
-		}
-	}
-
-	_, err := fmt.Fprintf(w, "</div>")
-	return err
-}
-
 // Render renders the code to the writer with spans for each highlight capture.
 // The [AttributeCallback] is used to generate the classes or inline styles for each span.
-func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], allTags []ResolvedTag, allFolds iter.Seq2[folds.Fold, error], source []byte, syntaxTypeNames []string, callback AttributeCallback) error {
+func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], allTags []ResolvedTag, allFolds []folds.Fold, source []byte, syntaxTypeNames []string, callback AttributeCallback) error {
 	nextTag, closeTag := iter.Pull(slices.Values(allTags))
 	defer closeTag()
 
@@ -202,11 +214,10 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 	var (
 		highlights []highlight.Highlight
 		languages  []string
-		line       int
+		line       uint
 	)
 
-	line++
-	if _, err := fmt.Fprintf(w, "<span id=\"L%d\" class=\"%sl\">", line, r.Options.ClassNamePrefix); err != nil {
+	if _, err := fmt.Fprintf(w, "<a href=\"#L%d\" class=\"%sln\">%d</a><span id=\"L%d\" class=\"%sl\">", line+1, r.Options.ClassNamePrefix, line+1, line+1, r.Options.ClassNamePrefix); err != nil {
 		return err
 	}
 
@@ -280,11 +291,11 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 				text = append(text, []byte(html.EscapeString(string(source[i])))...)
 			}
 
-			if err = r.addText(w, line, text, highlights, languages, callback); err != nil {
+			if err = r.addText(w, line, text, highlights, languages, allFolds, callback); err != nil {
 				return fmt.Errorf("error while writing source: %w", err)
 			}
 
-			line += bytes.Count(source[e.StartByte:e.EndByte], []byte("\n"))
+			line += uint(bytes.Count(source[e.StartByte:e.EndByte], []byte("\n")))
 		}
 	}
 
@@ -366,43 +377,41 @@ func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event,
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", html.EscapeString(title)); err != nil {
-		return err
-	}
-
-	if err := r.RenderCSS(w, theme); err != nil {
-		return err
-	}
-
-	if _, err := fmt.Fprintf(w, "</style>\n</head>\n<body>\n<pre class=\"%shl\">", r.Options.ClassNamePrefix); err != nil {
-		return err
-	}
-
-	if r.Options.ShowLineNumbers {
-		if err := r.RenderLineNumbers(w, bytes.Count(source, []byte("\n"))+1); err != nil {
+	var allFolds []folds.Fold
+	for fold, err := range foldsIter {
+		if err != nil {
 			return err
 		}
+		allFolds = append(allFolds, fold)
 	}
 
-	if _, err := fmt.Fprintf(w, "<code class=\"%scode\">", r.Options.ClassNamePrefix); err != nil {
+	if _, err = fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", html.EscapeString(title)); err != nil {
 		return err
 	}
 
-	if err := r.Render(w, events, resolvedTags, foldsIter, source, syntaxTypeNames, r.themeAttributeCallback(captureNames)); err != nil {
+	if err = r.RenderCSS(w, theme); err != nil {
 		return err
 	}
 
-	if _, err := fmt.Fprintf(w, "</code>"); err != nil {
+	if _, err = fmt.Fprintf(w, "</style>\n</head>\n<body>\n<pre class=\"%shl\"><code class=\"%scode\">", r.Options.ClassNamePrefix, r.Options.ClassNamePrefix); err != nil {
+		return err
+	}
+
+	if err = r.Render(w, events, resolvedTags, allFolds, source, syntaxTypeNames, r.themeAttributeCallback(captureNames)); err != nil {
+		return err
+	}
+
+	if _, err = fmt.Fprintf(w, "</code>"); err != nil {
 		return err
 	}
 
 	if r.Options.ShowSymbols {
-		if err := r.RenderSymbols(w, resolvedTags, source, syntaxTypeNames, theme); err != nil {
+		if err = r.RenderSymbols(w, resolvedTags, source, syntaxTypeNames, theme); err != nil {
 			return err
 		}
 	}
 
-	if _, err := fmt.Fprintf(w, "</pre>\n</body>\n</html>\n"); err != nil {
+	if _, err = fmt.Fprintf(w, "</pre>\n</body>\n</html>\n"); err != nil {
 		return err
 	}
 

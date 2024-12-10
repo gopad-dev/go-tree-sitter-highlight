@@ -3,7 +3,6 @@ package html
 import (
 	"fmt"
 	"iter"
-	"log"
 	"slices"
 
 	"go.gopad.dev/go-tree-sitter-highlight/tags"
@@ -73,12 +72,6 @@ func findDefForRef(ref tags.Tag, allTags []ResolvedTag, source []byte, syntaxTyp
 		}
 
 		if tag.Tag.Name(source) == ref.Name(source) {
-			// check if the reference is within the local scope of the definition.
-			if ref.Range.Start < tag.Tag.LocalScopeRange.StartByte || ref.Range.End > tag.Tag.LocalScopeRange.EndByte {
-				log.Println("Reference is not within the local scope of the definition.")
-				continue
-			}
-
 			if ref.SyntaxTypeID == 0 || tag.Tag.SyntaxTypeID == ref.SyntaxTypeID {
 				return i
 			}

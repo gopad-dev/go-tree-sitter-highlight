@@ -1,6 +1,7 @@
 package folds
 
 import (
+	"bytes"
 	"context"
 
 	"github.com/tree-sitter/go-tree-sitter"
@@ -44,8 +45,45 @@ func (f *iterator) next() (*Fold, error) {
 			f.LastFoldRow = startRow
 
 			return &Fold{
-				Range: capture.Node.Range(),
+				Range:     capture.Node.Range(),
+				LineRange: newLineRange(f.Source, capture.Node.Range()),
 			}, nil
 		}
+	}
+}
+
+func newLineRange(source []byte, r tree_sitter.Range) tree_sitter.Range {
+	lineStartByte := r.StartByte - r.StartPoint.Column
+
+	textAfterLineStart := source[lineStartByte:]
+	lineEndByte := lineStartByte
+	var lineEndColum uint
+	var lines uint
+	for {
+		lineEnd := bytes.IndexByte(textAfterLineStart, '\n')
+		if lineEnd == -1 {
+			break
+		}
+
+		if lines == r.EndPoint.Row-r.StartPoint.Row {
+			lineEndColum = uint(lineEnd)
+			break
+		}
+		textAfterLineStart = textAfterLineStart[lineEnd+1:]
+		lineEndByte += uint(lineEnd) + 1
+		lines++
+	}
+
+	return tree_sitter.Range{
+		StartByte: lineStartByte,
+		StartPoint: tree_sitter.Point{
+			Row:    r.StartPoint.Row,
+			Column: 0,
+		},
+		EndByte: lineStartByte + lineEndByte,
+		EndPoint: tree_sitter.Point{
+			Row:    r.EndPoint.Row,
+			Column: lineEndColum,
+		},
 	}
 }

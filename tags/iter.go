@@ -246,7 +246,6 @@ func (t *iterator) next() (*Tag, error) {
 						Range:            tagRange,
 						NameRange:        nameRange,
 						ScopeRange:       scopeRange,
-						LocalScopeRange:  t.Scopes[len(t.Scopes)-1].Range,
 						LineRange:        lineRange,
 						Span:             span,
 						UTF16ColumnRange: utf16ColumnRange,

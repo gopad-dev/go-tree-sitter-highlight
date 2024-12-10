@@ -3,6 +3,7 @@ package folds
 import (
 	"context"
 	"iter"
+	"log"
 
 	"github.com/tree-sitter/go-tree-sitter"
 
@@ -10,7 +11,8 @@ import (
 )
 
 type Fold struct {
-	Range tree_sitter.Range
+	Range     tree_sitter.Range
+	LineRange tree_sitter.Range
 }
 
 func New() *Folder {
@@ -56,6 +58,7 @@ func (c *Folder) Folds(ctx context.Context, cfg Configuration, source []byte) (i
 				return
 			}
 
+			log.Printf("found fold: [%d,%d-%d,%d] [%d,%d-%d,%d]\n", fold.Range.StartPoint.Row, fold.Range.StartPoint.Column, fold.Range.EndPoint.Row, fold.Range.EndPoint.Column, fold.LineRange.StartPoint.Row, fold.LineRange.StartPoint.Column, fold.LineRange.EndPoint.Row, fold.LineRange.EndPoint.Column)
 			if !yield(*fold, nil) {
 				return
 			}

@@ -7,18 +7,81 @@ import (
 	"go.gopad.dev/go-tree-sitter-highlight/tags"
 )
 
+/*
+# black
+palette = 0=#0D0D0D
+palette = 8=#6D7070
+
+# red
+palette = 1=#FF301B
+palette = 9=#FF4352
+
+# green
+palette = 2=#A0E521
+palette = 10=#B8E466
+
+# yellow
+palette = 3=#FFC620
+palette = 11=#FFD750
+
+# blue
+palette = 4=#1BA6FA
+palette = 12=#1BA6FA
+
+# purple
+palette = 5=#8763B8
+palette = 13=#A578EA
+
+# aqua
+palette = 6=#21DEEF
+palette = 14=#73FBF1
+
+# white
+palette = 7=#EBEBEB
+palette = 15=#FEFEF8
+*/
+
+func DefaultTheme() Theme {
+	return Theme{
+		TabSize: 4,
+		Text0:   "#f8f8f2",
+		Text1:   "#8A8A8A",
+
+		Background0: "#212122",
+		Background1: "#2b2b2b",
+		Background2: "#43494a",
+		Background3: "#363535",
+
+		HighlightColor: "#534500",
+		CodeStyles: map[string]string{
+			"variable":              "color: #f8f8f2;",
+			"variable.other.member": "color: #FF4352;",
+			"function":              "color: #73FBF1;",
+			"method":                "color: #73FBF1;",
+			"string":                "color: #B8E466;",
+			"type":                  "color: #FFD750;",
+			"keyword":               "color: #A578EA;",
+			"comment":               "color: #6D7070;",
+			"comment.todo":          "color: #FEFEF8;",
+		},
+	}
+}
+
 // Theme is used to style the rendered code, line numbers & symbols.
 type Theme struct {
-	TabSize                        int
-	Color                          string
-	BackgroundColor                string
-	LinesColor                     string
-	LinesBackgroundColor           string
-	SelectedLineBackgroundColor    string
-	HighlightBackgroundColor       string
-	SymbolKindBackgroundColor      string
-	SymbolKindHoverBackgroundColor string
-	CodeStyles                     map[string]string
+	TabSize int
+
+	Text0 string
+	Text1 string
+
+	Background0 string
+	Background1 string
+	Background2 string
+	Background3 string
+
+	HighlightColor string
+
+	CodeStyles map[string]string
 }
 
 func defaultOptions() Options {
@@ -27,6 +90,7 @@ func defaultOptions() Options {
 		IDPrefix:        "code-",
 		ShowLineNumbers: true,
 		ShowSymbols:     true,
+		SymbolsTitle:    "Symbols",
 		DebugTags:       false,
 		TagIDCallback:   defaultTagIDCallback,
 		CodeStyleSymbol: map[string]string{
@@ -52,6 +116,7 @@ type Options struct {
 	IDPrefix        string
 	ShowLineNumbers bool
 	ShowSymbols     bool
+	SymbolsTitle    string
 	DebugTags       bool
 	// TagIDCallback is a callback function that returns a unique HTML id for a tag. If nil, a default implementation is used.
 	TagIDCallback   TagIDCallback

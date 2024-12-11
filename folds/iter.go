@@ -44,6 +44,11 @@ func (f *iterator) next() (*Fold, error) {
 
 			f.LastFoldRow = startRow
 
+			// if the fold is a single line, skip it
+			if startRow == capture.Node.EndPosition().Row {
+				continue
+			}
+
 			return &Fold{
 				Range:     capture.Node.Range(),
 				LineRange: newLineRange(f.Source, capture.Node.Range()),

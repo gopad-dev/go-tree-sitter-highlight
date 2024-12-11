@@ -1,8 +1,10 @@
 /* Highlight Styles */
 .{{ .ClassNamePrefix }}hl {
-    color: {{ .Theme.Color }};
-    background-color: {{ .Theme.BackgroundColor }};
+    font-family: monospace;
+    color: {{ .Theme.Text0}};
+    background-color: {{ .Theme.Background0 }};
     tab-size: {{ .Theme.TabSize }};
+    position: relative;
 }
 
 .{{ .ClassNamePrefix }}hl * {
@@ -13,8 +15,8 @@
 
 .{{ .ClassNamePrefix }}ln {
     display: inline;
-    color: {{ .Theme.LinesColor }};
-    background-color: {{ .Theme.LinesBackgroundColor }};
+    color: {{ .Theme.Text1 }};
+    background-color: {{ .Theme.Background3 }};
     padding-left: 0.5rem;
     padding-right: 0.5rem;
     text-align: right;
@@ -31,30 +33,34 @@
     outline: none;
 }
 
-.{{ .ClassNamePrefix }}l:before {
-    content: attr(data-line);
-    user-select: none;
-}
-
 .{{ .ClassNamePrefix }}l {
     display: inline;
-    width: 100%;
     padding-left: 0.5rem;
     padding-right: 0.5rem;
 }
 
 .{{ .ClassNamePrefix }}l:target {
-    background-color: {{ .Theme.SelectedLineBackgroundColor }};
+    background-color: {{ .Theme.HighlightColor }};
 }
 
 /* Code Styles */
 .{{ .ClassNamePrefix }}code {
-    display: inline-block;
+    display: grid;
     white-space: pre;
+    grid-template-columns: min-content auto;
 }
 
 .{{ .ClassNamePrefix }}code details {
     white-space: pre-wrap;
+    display: contents;
+}
+
+.{{ .ClassNamePrefix }}code details > a {
+    grid-column: 1;
+}
+
+.{{ .ClassNamePrefix }}code details > div {
+    grid-column: 2
 }
 
 .{{ .ClassNamePrefix }}code details > summary {
@@ -62,14 +68,16 @@
 }
 
 .{{ .ClassNamePrefix }}code details > summary::before {
-    content: "\1F882";
+    content: "🞂";
     position: absolute;
     transform: translateY(-1rem);
 }
 
 .{{ .ClassNamePrefix }}code details[open] > summary::before {
-    content: "\1F883";
+    content: "🞃";
 }
+
+/* Link Styles */
 
 .{{ .ClassNamePrefix }}ref {
     color: unset;
@@ -90,64 +98,190 @@
 }
 
 .{{ .ClassNamePrefix }}def:target {
-    background-color: {{ .Theme.HighlightBackgroundColor }};
-    padding: 0 0.2rem;
-    margin: 0 -0.2rem;
+    background-color: {{ .Theme.HighlightColor }};
+    padding: 0 0.1rem;
+    margin: 0 -0.1rem;
     border-radius: 0.2rem;
 }
 
 /* Symbol Styles */
-.{{ .ClassNamePrefix }}symbols {
-    float: right;
-    width: 16rem;
-    padding: 0.5rem;
-    margin: 0;
-    white-space: normal;
+#{{ .IDPrefix }}symbols-toggle {
+    display: none;
+}
+
+#{{ .IDPrefix }}symbols-toggle:checked ~ .{{ .ClassNamePrefix }}symbols {
+    display: block;
+}
+
+label[for="{{ .IDPrefix }}symbols-toggle"] {
+    height: 1.5rem;
+    width: 1.5rem;
+    margin-top: 1rem;
+    margin-right: 1rem;
+    position: absolute;
+    top: 0;
+    right: 0;
+    z-index: 1;
+    cursor: pointer;
+    background-color: {{ .Theme.Background1 }};
+    border-radius: 0.5rem;
     user-select: none;
 }
 
-.{{ .ClassNamePrefix }}symbols li {
-    list-style-type: none;
-    padding: 0.5rem 0.5rem;
+label[for="{{ .IDPrefix }}symbols-toggle"] span {
+    position: absolute;
+    width: 0.8rem;
+    height: 0.1rem;
+    background-color: #F0F0F0;
+    top: 50%;
+    left: 50%;
+    transition: all 0.3s ease-in-out;
+
+    transform: translate(-50%, -50%);
+    transform-origin: top left;
+}
+
+label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(1) {
+    top: 30%;
+}
+
+#{{ .IDPrefix }}symbols-toggle:checked + label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(1){
+    top: 50%;
+    transform: rotate(45deg) translate(-50%, -50%);
+}
+
+label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(2) {
+    top: 50%;
+}
+
+#{{ .IDPrefix }}symbols-toggle:checked + label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(2){
+    opacity: 0;
+}
+
+label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
+    top: 70%;
+}
+
+#{{ .IDPrefix }}symbols-toggle:checked + label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3){
+    top: 50%;
+    transform: rotate(-45deg) translate(-50%, -50%);
+}
+
+.{{ .ClassNamePrefix }}symbols {
+    background-color: {{ .Theme.Background1 }};
+    width: 16rem;
     border-radius: 0.5rem;
+    padding: 0.5rem;
+    white-space: normal;
+    user-select: none;
+    position: absolute;
+    top: 0;
+    right: 0;
+    display: none;
 }
 
-.{{ .ClassNamePrefix }}symbols li:hover {
-    background-color: {{ .Theme.SymbolKindHoverBackgroundColor }};
+.{{ .ClassNamePrefix }}symbols h2 {
+    margin: 0.5rem;
 }
 
-.{{ .ClassNamePrefix }}symbols li + details[open] {
-    background-color: {{ .Theme.SymbolKindHoverBackgroundColor }};
+.{{ .ClassNamePrefix }}symbols > ul {
+    padding: 0;
+    margin: 0;
 }
 
-.{{ .ClassNamePrefix }}symbols li a {
+.{{ .ClassNamePrefix }}symbols > ul > li {
+    list-style-type: none;
+    margin-bottom: 0.1rem;
+}
+
+.{{ .ClassNamePrefix }}symbols > ul > li > details > summary,
+.{{ .ClassNamePrefix }}symbols > ul > li > details > div,
+.{{ .ClassNamePrefix }}symbols > ul > li > div {
+    padding: 0.5rem 0.5rem;
+}
+
+.{{ .ClassNamePrefix }}symbols > ul > li > details > div {
+    border-top: 1px solid {{ .Theme.Background1 }};
+}
+
+.{{ .ClassNamePrefix }}symbols > ul > li > *:hover {
+    background-color: {{ .Theme.Background2 }};
+}
+
+.{{ .ClassNamePrefix }}symbols > ul > li a {
     color: unset;
     text-decoration: none;
 }
 
-.{{ .ClassNamePrefix }}symbols li a:hover {
+.{{ .ClassNamePrefix }}symbols > ul > li a:hover {
     text-decoration: underline;
 }
 
-.{{ .ClassNamePrefix }}symbols li details {
+.{{ .ClassNamePrefix }}symbols > ul > li > details,
+.{{ .ClassNamePrefix }}symbols > ul > li > div {
     white-space: normal;
+    border-radius: 0.5rem;
 }
 
-.{{ .ClassNamePrefix }}symbols li details[open] p {
+.{{ .ClassNamePrefix }}symbols > ul > li details[open] {
+    background-color: {{ .Theme.Background2 }};
+}
+
+.{{ .ClassNamePrefix }}symbols > ul > li p code {
+    background-color: {{ .Theme.Background0 }};
+}
+
+.{{ .ClassNamePrefix }}symbols > ul > li details[open] p {
     padding: 0.5rem;
     margin: 0;
 }
 
-.{{ .ClassNamePrefix }}symbols li details summary {
+.{{ .ClassNamePrefix }}symbols > ul > li details summary {
     cursor: pointer;
 }
 
-.{{ .ClassNamePrefix }}symbols li details[open] summary {
-    margin-bottom: 0.5rem;
+.{{ .ClassNamePrefix }}symbols > ul > li details[open] summary {
+    padding-bottom: 0.5rem;
+}
+
+.{{ .ClassNamePrefix }}refs > h3 {
+    margin: 0;
+    padding: 0.5rem;
+}
+
+.{{ .ClassNamePrefix }}refs > ul {
+    margin: 0 0 0 1rem;
+    padding: 0;
+    list-style-type: none;
+}
+
+.{{ .ClassNamePrefix }}refs > ul > li {
+    margin-bottom: 0.1rem;
+}
+
+.{{ .ClassNamePrefix }}refs > ul > li > a {
+    display: inline-block;
+    padding: 0.3rem;
+    background-color: {{ .Theme.Background0 }};
+    border-radius: 0.2rem;
+    width: 100%;
+}
+
+.{{ .ClassNamePrefix }}ref-ln {
+    color: {{ .Theme.Text1 }};
+    background-color: {{ .Theme.Background3 }};
+    padding: 0.3rem;
+    margin: -0.3rem 0 -0.3rem -0.3rem;
+    border-radius: 0.2rem;
+    user-select: none;
+}
+
+.{{ .ClassNamePrefix }}refs > ul > li code{
+    margin-left: 0.5rem;
 }
 
 .{{ .ClassNamePrefix }}symbol-kind {
-    background-color: {{ .Theme.SymbolKindBackgroundColor }};
+    background-color: {{ .Theme.Background0 }};
     padding: 0.2rem 0.3rem;
     border-radius: 0.2rem;
     user-select: none;

@@ -81,13 +81,6 @@ func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight
 			}
 
 			var skipNewLine bool
-			//if slices.ContainsFunc(allFolds, func(f folds.Fold) bool {
-			//	return f.LineRange.StartPoint.Row == line
-			//}) {
-			//	fmt.Fprintf(w, "</summary>")
-			//	skipNewLine = true
-			//}
-
 			if slices.ContainsFunc(allFolds, func(f folds.Fold) bool {
 				return f.LineRange.EndPoint.Row == line
 			}) {
@@ -304,10 +297,15 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 
 // RenderSymbols renders the symbols list to the writer.
 func (r *Renderer) RenderSymbols(w io.Writer, resolvedTags []ResolvedTag, source []byte, syntaxTypeNames []string, theme Theme) error {
-	if _, err := fmt.Fprintf(w, "<ul class=\"%ssymbols\">\n", r.Options.ClassNamePrefix); err != nil {
+	if _, err := fmt.Fprintf(w, "\n<input type=\"checkbox\" id=\"%ssymbols-toggle\"/><label for=\"code-symbols-toggle\"><span></span><span></span><span></span></label>", r.Options.IDPrefix); err != nil {
 		return err
 	}
 
+	if _, err := fmt.Fprintf(w, "<div class=\"%ssymbols\">\n<h2>%s</h2>\n<ul>\n", r.Options.ClassNamePrefix, r.Options.SymbolsTitle); err != nil {
+		return err
+	}
+
+	first := true
 	for _, tag := range resolvedTags {
 		symbolName := syntaxTypeNames[tag.Tag.SyntaxTypeID]
 
@@ -326,20 +324,47 @@ func (r *Renderer) RenderSymbols(w io.Writer, resolvedTags []ResolvedTag, source
 				break
 			}
 
-			i := strings.Index(globalSymbol, ".")
-			if i == -1 {
+			si := strings.Index(globalSymbol, ".")
+			if si == -1 {
 				break
 			}
 
-			globalSymbol = globalSymbol[:i]
+			globalSymbol = globalSymbol[:si]
+		}
+
+		var details string
+		if tag.Tag.Docs != "" {
+			details += fmt.Sprintf("<p>%s</p>", tag.Tag.Docs)
+		}
+		if len(tag.Refs) > 0 {
+			details += fmt.Sprintf("<div class=\"%srefs\">\n<h3>References:</h3>\n<ul>", r.Options.ClassNamePrefix)
+			for _, ref := range tag.Refs {
+				details += fmt.Sprintf("<li>\n<a href=\"#L%d\"><span class=\"%sref-ln\">%d</span><code>%s</code>\n</a>\n</li>\n", ref.LineRow+1, r.Options.ClassNamePrefix, ref.LineRow+1, ref.Line(source))
+			}
+			details += "</ul>\n</div>"
 		}
 
 		if _, err := fmt.Fprintf(w, "<li>"); err != nil {
 			return err
 		}
 
-		if tag.Tag.Docs != "" {
-			if _, err := fmt.Fprintf(w, "<details name=\"symbol\"><summary>"); err != nil {
+		if details != "" {
+			if _, err := fmt.Fprintf(w, "<details name=\"symbol\""); err != nil {
+				return err
+			}
+
+			if first {
+				if _, err := fmt.Fprintf(w, " open"); err != nil {
+					return err
+				}
+				first = false
+			}
+
+			if _, err := fmt.Fprintf(w, ">\n<summary>"); err != nil {
+				return err
+			}
+		} else {
+			if _, err := fmt.Fprintf(w, "<div>"); err != nil {
 				return err
 			}
 		}
@@ -352,8 +377,12 @@ func (r *Renderer) RenderSymbols(w io.Writer, resolvedTags []ResolvedTag, source
 			return err
 		}
 
-		if tag.Tag.Docs != "" {
-			if _, err := fmt.Fprintf(w, "</summary><p>%s</p></details>", tag.Tag.Docs); err != nil {
+		if details != "" {
+			if _, err := fmt.Fprintf(w, "</summary><div>%s</div></details>", details); err != nil {
+				return err
+			}
+		} else {
+			if _, err := fmt.Fprintf(w, "</div>"); err != nil {
 				return err
 			}
 		}
@@ -363,7 +392,7 @@ func (r *Renderer) RenderSymbols(w io.Writer, resolvedTags []ResolvedTag, source
 		}
 	}
 
-	if _, err := fmt.Fprintf(w, "</ul>\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "</ul>\n</div>\n"); err != nil {
 		return err
 	}
 
@@ -385,7 +414,7 @@ func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event,
 		allFolds = append(allFolds, fold)
 	}
 
-	if _, err = fmt.Fprintf(w, "<!DOCTYPE html>\n<html>\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", html.EscapeString(title)); err != nil {
+	if _, err = fmt.Fprintf(w, "<!DOCTYPE html>\n<html style=\"background-color:%s;\">\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", theme.Background0, html.EscapeString(title)); err != nil {
 		return err
 	}
 
@@ -393,7 +422,7 @@ func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event,
 		return err
 	}
 
-	if _, err = fmt.Fprintf(w, "</style>\n</head>\n<body>\n<pre class=\"%shl\"><code class=\"%scode\">", r.Options.ClassNamePrefix, r.Options.ClassNamePrefix); err != nil {
+	if _, err = fmt.Fprintf(w, "</style>\n</head>\n<body>\n<div class=\"%shl\"><code class=\"%scode\">", r.Options.ClassNamePrefix, r.Options.ClassNamePrefix); err != nil {
 		return err
 	}
 
@@ -401,7 +430,7 @@ func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event,
 		return err
 	}
 
-	if _, err = fmt.Fprintf(w, "</code>"); err != nil {
+	if _, err = fmt.Fprintf(w, "</code>\n"); err != nil {
 		return err
 	}
 
@@ -411,7 +440,7 @@ func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event,
 		}
 	}
 
-	if _, err = fmt.Fprintf(w, "</pre>\n</body>\n</html>\n"); err != nil {
+	if _, err = fmt.Fprintf(w, "</div>\n</body>\n</html>\n"); err != nil {
 		return err
 	}
 

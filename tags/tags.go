@@ -44,6 +44,7 @@ type Tag struct {
 	NameRange        byteRange
 	ScopeRange       *byteRange
 	LineRange        byteRange
+	LineRow          uint
 	Span             pointRange
 	UTF16ColumnRange byteRange
 	Docs             string
@@ -76,6 +77,10 @@ func (t Tag) FullName(source []byte) string {
 
 func (t Tag) Content(source []byte) string {
 	return string(source[t.Range.Start:t.Range.End])
+}
+
+func (t Tag) Line(source []byte) string {
+	return string(source[t.LineRange.Start:t.LineRange.End])
 }
 
 type localDef struct {

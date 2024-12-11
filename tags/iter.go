@@ -247,6 +247,7 @@ func (t *iterator) next() (*Tag, error) {
 						NameRange:        nameRange,
 						ScopeRange:       scopeRange,
 						LineRange:        lineRange,
+						LineRow:          span.Start.Row,
 						Span:             span,
 						UTF16ColumnRange: utf16ColumnRange,
 						Docs:             docs,

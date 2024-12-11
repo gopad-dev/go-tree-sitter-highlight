@@ -197,10 +197,10 @@
 (keyed_element
   .
   (literal_element
-    (identifier) @variable.member))
+    (identifier) @variable.other.member))
 
 (field_declaration
-  name: (field_identifier) @variable.member)
+  name: (field_identifier) @variable.other.member)
 
 ; Comments
 (comment) @comment

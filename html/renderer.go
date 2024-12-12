@@ -29,10 +29,6 @@ func escapeClassName(className string) string {
 	return strings.ReplaceAll(className, ".", "-")
 }
 
-// AttributeCallback is a callback function that returns the html element attributes for a highlight span.
-// This can be anything from classes, ids, or inline styles.
-type AttributeCallback func(h highlight.Highlight, languageName string) string
-
 // NewRenderer returns a new Renderer.
 func NewRenderer(options *Options) *Renderer {
 	var opts Options
@@ -44,6 +40,10 @@ func NewRenderer(options *Options) *Renderer {
 
 	if opts.TagIDCallback == nil {
 		opts.TagIDCallback = defaultTagIDCallback
+	}
+
+	if opts.AttributeCallback == nil {
+		opts.AttributeCallback = defaultThemeAttributeCallback
 	}
 
 	cssTmpl := template.Must(template.New("css").Parse(css))
@@ -60,7 +60,7 @@ type Renderer struct {
 	Options Options
 }
 
-func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight.Highlight, languages []string, allFolds []folds.Fold, callback AttributeCallback) error {
+func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight.Highlight, languages []string, allFolds []folds.Fold, captureNames []string) error {
 	for len(source) > 0 {
 		c, l := utf8.DecodeRune(source)
 		source = source[l:]
@@ -115,7 +115,7 @@ func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight
 				if i == 0 {
 					continue
 				}
-				if err := r.startHighlight(w, h, languageName, callback); err != nil {
+				if err := r.startHighlight(w, h, languageName, captureNames); err != nil {
 					return err
 				}
 				if h == highlight.DefaultHighlight {
@@ -134,16 +134,12 @@ func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight
 	return nil
 }
 
-func (r *Renderer) startHighlight(w io.Writer, h highlight.Highlight, languageName string, callback AttributeCallback) error {
+func (r *Renderer) startHighlight(w io.Writer, h highlight.Highlight, languageName string, captureNames []string) error {
 	if _, err := fmt.Fprintf(w, "<span"); err != nil {
 		return err
 	}
 
-	var attributes string
-	if callback != nil {
-		attributes = callback(h, languageName)
-	}
-
+	attributes := r.Options.AttributeCallback(h, languageName, r.Options.ClassNamePrefix, captureNames)
 	if len(attributes) > 0 {
 		if _, err := w.Write([]byte(" ")); err != nil {
 			return err
@@ -160,16 +156,6 @@ func (r *Renderer) startHighlight(w io.Writer, h highlight.Highlight, languageNa
 func (r *Renderer) endHighlight(w io.Writer) error {
 	_, err := w.Write([]byte("</span>"))
 	return err
-}
-
-func (r *Renderer) themeAttributeCallback(captureNames []string) AttributeCallback {
-	return func(h highlight.Highlight, languageName string) string {
-		if h == highlight.DefaultHighlight {
-			return ""
-		}
-
-		return fmt.Sprintf(`class="%s%s"`, r.Options.ClassNamePrefix, escapeClassName(captureNames[h]))
-	}
 }
 
 // RenderCSS renders the css classes for a theme to the writer.
@@ -197,9 +183,16 @@ func (r *Renderer) RenderCSS(w io.Writer, theme Theme) error {
 }
 
 // Render renders the code to the writer with spans for each highlight capture.
-// The [AttributeCallback] is used to generate the classes or inline styles for each span.
-func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], allTags []ResolvedTag, allFolds []folds.Fold, source []byte, syntaxTypeNames []string, callback AttributeCallback) error {
-	nextTag, closeTag := iter.Pull(slices.Values(allTags))
+func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], resolvedTags []ResolvedTag, foldsIter iter.Seq2[folds.Fold, error], source []byte, captureNames []string) error {
+	var allFolds []folds.Fold
+	for fold, err := range foldsIter {
+		if err != nil {
+			return err
+		}
+		allFolds = append(allFolds, fold)
+	}
+
+	nextTag, closeTag := iter.Pull(slices.Values(resolvedTags))
 	defer closeTag()
 
 	currentTag, currentTagOk := nextTag()
@@ -233,7 +226,7 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 		case highlight.EventCaptureStart:
 			highlights = append(highlights, e.Highlight)
 			language := languages[len(languages)-1]
-			if err = r.startHighlight(w, e.Highlight, language, callback); err != nil {
+			if err = r.startHighlight(w, e.Highlight, language, captureNames); err != nil {
 				return fmt.Errorf("error while starting highlight: %w", err)
 			}
 		case highlight.EventCaptureEnd:
@@ -284,7 +277,7 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 				text = append(text, []byte(html.EscapeString(string(source[i])))...)
 			}
 
-			if err = r.addText(w, line, text, highlights, languages, allFolds, callback); err != nil {
+			if err = r.addText(w, line, text, highlights, languages, allFolds, captureNames); err != nil {
 				return fmt.Errorf("error while writing source: %w", err)
 			}
 
@@ -406,14 +399,6 @@ func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event,
 		return err
 	}
 
-	var allFolds []folds.Fold
-	for fold, err := range foldsIter {
-		if err != nil {
-			return err
-		}
-		allFolds = append(allFolds, fold)
-	}
-
 	if _, err = fmt.Fprintf(w, "<!DOCTYPE html>\n<html style=\"background-color:%s;\">\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", theme.Background0, html.EscapeString(title)); err != nil {
 		return err
 	}
@@ -426,7 +411,7 @@ func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event,
 		return err
 	}
 
-	if err = r.Render(w, events, resolvedTags, allFolds, source, syntaxTypeNames, r.themeAttributeCallback(captureNames)); err != nil {
+	if err = r.Render(w, events, resolvedTags, foldsIter, source, captureNames); err != nil {
 		return err
 	}
 

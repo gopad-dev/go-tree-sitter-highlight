@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"html"
 
+	"go.gopad.dev/go-tree-sitter-highlight/highlight"
 	"go.gopad.dev/go-tree-sitter-highlight/tags"
 )
 
@@ -119,9 +120,10 @@ type Options struct {
 	SymbolsTitle    string
 	DebugTags       bool
 	// TagIDCallback is a callback function that returns a unique HTML id for a tag. If nil, a default implementation is used.
-	TagIDCallback   TagIDCallback
-	CodeStyleSymbol map[string]string
-	SymbolKindNames map[string]string
+	TagIDCallback     TagIDCallback
+	AttributeCallback AttributeCallback
+	CodeStyleSymbol   map[string]string
+	SymbolKindNames   map[string]string
 }
 
 // TagIDCallback is a callback function that returns a unique HTML id for a tag.
@@ -129,4 +131,16 @@ type TagIDCallback func(tag tags.Tag, source []byte, syntaxNames []string) strin
 
 func defaultTagIDCallback(tag tags.Tag, source []byte, syntaxNames []string) string {
 	return fmt.Sprintf("%s-%s", html.EscapeString(syntaxNames[tag.SyntaxTypeID]), html.EscapeString(tag.FullName(source)))
+}
+
+// AttributeCallback is a callback function that returns the html element attributes for a highlight span.
+// This can be anything from classes, ids, or inline styles.
+type AttributeCallback func(h highlight.Highlight, languageName string, classNamePrefix string, captureNames []string) string
+
+func defaultThemeAttributeCallback(h highlight.Highlight, languageName string, classNamePrefix string, captureNames []string) string {
+	if h == highlight.DefaultHighlight {
+		return ""
+	}
+
+	return fmt.Sprintf(`class="%s%s"`, classNamePrefix, escapeClassName(captureNames[h]))
 }

@@ -5,6 +5,8 @@ import (
 	"fmt"
 
 	"github.com/tree-sitter/go-tree-sitter"
+
+	"go.gopad.dev/go-tree-sitter-highlight/internal/peekiter"
 )
 
 type highlightQueueItem struct {
@@ -64,11 +66,6 @@ func (k sortKey) GreaterThan(other sortKey) bool {
 
 func (k sortKey) LessThan(other sortKey) bool {
 	return k.Compare(other) == -1
-}
-
-type _queryCapture struct {
-	Match tree_sitter.QueryMatch
-	Index uint
 }
 
 type localDef struct {
@@ -143,10 +140,7 @@ func newIterLayers(
 				}
 			}
 
-			queryCaptures := newQueryCapturesIter(cursor.Captures(config.Query, tree.RootNode(), source))
-			if _, _, ok := queryCaptures.Peek(); !ok {
-				continue
-			}
+			queryCaptures := peekiter.NewQueryCaptures(cursor.Captures(config.Query, tree.RootNode(), source))
 
 			result = append(result, &iterLayer{
 				Tree:              tree,
@@ -198,7 +192,7 @@ type iterLayer struct {
 	Config            Configuration
 	HighlightEndStack []uint
 	ScopeStack        []localScope
-	Captures          *queryCapturesIter
+	Captures          *peekiter.QueryCaptures
 	Ranges            []tree_sitter.Range
 	Depth             uint
 }

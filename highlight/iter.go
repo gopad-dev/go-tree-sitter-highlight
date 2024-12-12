@@ -23,7 +23,7 @@ type iterator struct {
 	Layers             []*iterLayer
 	NextEvents         []Event
 	LastHighlightRange *highlightRange
-	LastLayer          *iterLayer
+	LayerStack         []*iterLayer
 }
 
 func (h *iterator) emitEvents(offset uint, events ...Event) (Event, error) {
@@ -36,13 +36,59 @@ func (h *iterator) emitEvents(offset uint, events ...Event) (Event, error) {
 		h.ByteOffset = offset
 		h.NextEvents = append(h.NextEvents, events...)
 	} else {
-		if len(events) > 1 {
+		if len(h.NextEvents) > 1 {
 			h.NextEvents = append(h.NextEvents, events[1:]...)
 		}
 		result = events[0]
 	}
 	h.sortLayers()
 	return result, nil
+}
+
+func (h *iterator) sortLayers() {
+	for len(h.Layers) > 0 {
+		key := h.Layers[0].sortKey()
+		if key != nil {
+			var i int
+			for i+1 < len(h.Layers) {
+				nextOffsetKey := h.Layers[i+1].sortKey()
+				if nextOffsetKey != nil {
+					if nextOffsetKey.GreaterThan(*key) {
+						i += 1
+						continue
+					}
+				}
+				break
+			}
+			if i > 0 {
+				h.Layers = append(rotateLeft(h.Layers[:i+1], 1), h.Layers[i+1:]...)
+			}
+			break
+		}
+		layer := h.Layers[0]
+		h.Layers = h.Layers[1:]
+		h.Highlighter.pushCursor(layer.Cursor)
+	}
+}
+
+func (h *iterator) insertLayer(layer *iterLayer) {
+	key := layer.sortKey()
+	if key != nil {
+		i := 1
+		for i < len(h.Layers) {
+			keyI := h.Layers[i].sortKey()
+			if keyI != nil {
+				if keyI.LessThan(*key) {
+					h.Layers = slices.Insert(h.Layers, i, layer)
+					return
+				}
+				i += 1
+			} else {
+				h.Layers = slices.Delete(h.Layers, i, i+1)
+			}
+		}
+		h.Layers = append(h.Layers, layer)
+	}
 }
 
 func (h *iterator) next() (Event, error) {
@@ -72,21 +118,37 @@ main:
 				return event, nil
 			}
 
+			if len(h.LayerStack) > 0 {
+				h.LayerStack = h.LayerStack[:len(h.LayerStack)-1]
+				return h.emitEvents(h.ByteOffset, EventLayerEnd{})
+			}
+
 			return nil, nil
 		}
 
 		// Get the next capture from whichever layer has the earliest highlight boundary.
 		layer := h.Layers[0]
-		if layer != h.LastLayer {
-			var events []Event
-			if h.LastLayer != nil {
-				events = append(events, EventLayerEnd{})
-			}
-			h.LastLayer = layer
 
-			return h.emitEvents(h.ByteOffset, append(events, EventLayerStart{
+		if len(h.LayerStack) == 0 {
+			h.LayerStack = append(h.LayerStack, layer)
+			return h.emitEvents(0, EventLayerStart{
 				LanguageName: layer.Config.LanguageName,
-			})...)
+				Range:        layer.Ranges[0],
+			})
+		}
+
+		if layer != h.LayerStack[len(h.LayerStack)-1] {
+			index := slices.Index(h.LayerStack, layer)
+			if index != -1 {
+				lastLayer := h.LayerStack[len(h.LayerStack)-1]
+				h.LayerStack = h.LayerStack[:len(h.LayerStack)-1]
+				return h.emitEvents(lastLayer.Ranges[0].EndByte, EventLayerEnd{})
+			}
+			h.LayerStack = append(h.LayerStack, layer)
+			return h.emitEvents(layer.Ranges[0].StartByte, EventLayerStart{
+				LanguageName: layer.Config.LanguageName,
+				Range:        layer.Ranges[0],
+			})
 		}
 
 		var nextCaptureRange tree_sitter.Range
@@ -168,7 +230,7 @@ main:
 					LocalDefs: nil,
 				}
 				for _, prop := range layer.Config.Query.PropertySettings(match.PatternIndex) {
-					if prop.Key == captureLocalScopeInherits {
+					if prop.Key == propertyLocalScopeInherits {
 						scope.Inherits = *prop.Value == "true"
 					}
 				}
@@ -301,52 +363,6 @@ main:
 		}
 
 		h.sortLayers()
-	}
-}
-
-func (h *iterator) sortLayers() {
-	for len(h.Layers) > 0 {
-		key := h.Layers[0].sortKey()
-		if key != nil {
-			var i int
-			for i+1 < len(h.Layers) {
-				nextOffsetKey := h.Layers[i+1].sortKey()
-				if nextOffsetKey != nil {
-					if nextOffsetKey.GreaterThan(*key) {
-						i += 1
-						continue
-					}
-				}
-				break
-			}
-			if i > 0 {
-				h.Layers = append(rotateLeft(h.Layers[:i+1], 1), h.Layers[i+1:]...)
-			}
-			break
-		}
-		layer := h.Layers[0]
-		h.Layers = h.Layers[1:]
-		h.Highlighter.pushCursor(layer.Cursor)
-	}
-}
-
-func (h *iterator) insertLayer(layer *iterLayer) {
-	key := layer.sortKey()
-	if key != nil {
-		i := 1
-		for i < len(h.Layers) {
-			keyI := h.Layers[i].sortKey()
-			if keyI != nil {
-				if keyI.LessThan(*key) {
-					h.Layers = slices.Insert(h.Layers, i, layer)
-					return
-				}
-				i += 1
-			} else {
-				h.Layers = slices.Delete(h.Layers, i, i+1)
-			}
-		}
-		h.Layers = append(h.Layers, layer)
 	}
 }
 

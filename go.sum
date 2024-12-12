@@ -1,3 +1,5 @@
+github.com/alexaandru/go-sitter-forest/comment v1.9.0 h1:g6eHeN9uE7+RVG1tmI0VBOHPa/uCMx+Anjm3/HT+G20=
+github.com/alexaandru/go-sitter-forest/comment v1.9.0/go.mod h1:M0IYmOtOoOdGznMOPFayh9NYf/28YqSMG3E64H/I6mQ=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=
 github.com/davecgh/go-spew v1.1.1/go.mod h1:J7Y8YcW2NihsgmVo/mv3lAwl/skON4iLHjSsI+c5H38=
 github.com/gopad-dev/go-tree-sitter v0.0.0-20241124232421-f22ab7977e8c h1:00jX5sEuvVFwKZsuulNJQhXEJYBKnPAh4MqTSCdNCV0=

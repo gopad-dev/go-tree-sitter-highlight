@@ -54,7 +54,7 @@ func DefaultTheme() Theme {
 		Background3: "#363535",
 
 		HighlightColor: "#534500",
-		CodeStyles: map[string]string{
+		CodeStyles: map[highlight.Highlight]string{
 			"variable":              "color: #f8f8f2;",
 			"variable.other.member": "color: #FF4352;",
 			"function":              "color: #73FBF1;",
@@ -82,7 +82,7 @@ type Theme struct {
 
 	HighlightColor string
 
-	CodeStyles map[string]string
+	CodeStyles map[highlight.Highlight]string
 }
 
 func defaultOptions() Options {
@@ -135,12 +135,17 @@ func defaultTagIDCallback(tag tags.Tag, source []byte, syntaxNames []string) str
 
 // AttributeCallback is a callback function that returns the html element attributes for a highlight span.
 // This can be anything from classes, ids, or inline styles.
-type AttributeCallback func(h highlight.Highlight, languageName string, classNamePrefix string, captureNames []string) string
+type AttributeCallback func(h highlight.Highlight, languageName string, classNamePrefix string, theme Theme) string
 
-func defaultThemeAttributeCallback(h highlight.Highlight, languageName string, classNamePrefix string, captureNames []string) string {
+func defaultThemeAttributeCallback(h highlight.Highlight, languageName string, classNamePrefix string, theme Theme) string {
 	if h == highlight.DefaultHighlight {
 		return ""
 	}
 
-	return fmt.Sprintf(`class="%s%s"`, classNamePrefix, escapeClassName(captureNames[h]))
+	styleName, _ := highlight.FindHighlight(theme.CodeStyles, h, languageName, "")
+	if styleName == "" {
+		return ""
+	}
+
+	return fmt.Sprintf(`class="%s%s"`, classNamePrefix, escapeClassName(string(styleName)))
 }

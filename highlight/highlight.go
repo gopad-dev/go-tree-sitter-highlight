@@ -3,15 +3,39 @@ package highlight
 import (
 	"bytes"
 	"context"
+	"fmt"
 	"iter"
+	"strings"
 
 	"github.com/tree-sitter/go-tree-sitter"
 )
 
 // Highlight represents the index of a capture name.
-type Highlight uint
+type Highlight string
 
-const DefaultHighlight = Highlight(^uint(0))
+const DefaultHighlight Highlight = "default"
+
+// FindHighlight finds the value of a [Highlight] in a map. The function will first look for a value with the key `{highlight}.{languageName}`, then `{highlight}`.
+// If the value is not found, the function will remove the last segment of the highlight and try again until the highlight is empty.
+func FindHighlight[V any](highlights map[Highlight]V, highlight Highlight, languageName string, fallback V) (Highlight, V) {
+	for {
+		if languageName != "" {
+			if v, ok := highlights[Highlight(fmt.Sprintf("%s.%s", languageName, highlight))]; ok {
+				return highlight, v
+			}
+		}
+
+		if v, ok := highlights[highlight]; ok {
+			return highlight, v
+		}
+
+		i := strings.LastIndex(string(highlight), ".")
+		if i == -1 {
+			return "", fallback
+		}
+		highlight = highlight[:i]
+	}
+}
 
 // Event is an interface that represents a highlight event.
 // Possible implementations are:
@@ -93,6 +117,13 @@ func (h *Highlighter) popCursor() *tree_sitter.QueryCursor {
 // Highlight highlights the given source code using the given configuration. The source code is expected to be UTF-8 encoded.
 // The function returns an [iter.Seq2[Event, error]] that yields the highlight events or an error.
 func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source []byte, injectionCallback InjectionCallback) (iter.Seq2[Event, error], error) {
+	var endColumn uint
+	if lastNewline := bytes.LastIndexByte(source, '\n'); lastNewline != -1 {
+		endColumn = uint(len(source[lastNewline:]))
+	} else {
+		endColumn = uint(len(source))
+	}
+
 	layers, err := newIterLayers(ctx, source, "", h, injectionCallback, cfg, 0, []tree_sitter.Range{
 		{
 			StartByte: 0,
@@ -103,7 +134,7 @@ func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source [
 			},
 			EndPoint: tree_sitter.Point{
 				Row:    uint(bytes.Count(source, []byte("\n"))),
-				Column: uint(len(source[bytes.LastIndexByte(source, '\n'):])) - 1,
+				Column: endColumn,
 			},
 		},
 	})

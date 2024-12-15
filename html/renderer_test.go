@@ -17,7 +17,7 @@ import (
 
 var theme = DefaultTheme()
 
-func loadInjection(t *testing.T, captureNames []string) highlight.InjectionCallback {
+func loadInjection(t *testing.T) highlight.InjectionCallback {
 	return func(languageName string) *highlight.Configuration {
 		switch languageName {
 		case "comment":
@@ -28,8 +28,6 @@ func loadInjection(t *testing.T, captureNames []string) highlight.InjectionCallb
 			cfg, err := highlight.NewConfiguration(commentLang, languageName, highlightsQuery, nil, nil)
 			require.NoError(t, err)
 
-			cfg.Configure(captureNames)
-
 			return cfg
 		}
 
@@ -38,11 +36,6 @@ func loadInjection(t *testing.T, captureNames []string) highlight.InjectionCallb
 }
 
 func TestRenderer_Render(t *testing.T) {
-	captureNames := make([]string, 0, len(theme.CodeStyles))
-	for name := range theme.CodeStyles {
-		captureNames = append(captureNames, name)
-	}
-
 	source, err := os.ReadFile("../testdata/test.go")
 	require.NoError(t, err)
 
@@ -65,7 +58,6 @@ func TestRenderer_Render(t *testing.T) {
 
 	highlightCfg, err := highlight.NewConfiguration(language, "go", highlightsQuery, injectionsQuery, localsQuery)
 	require.NoError(t, err)
-	highlightCfg.Configure(captureNames)
 
 	tagsCfg, err := tags.NewConfiguration(language, tagsQuery, localsQuery)
 	require.NoError(t, err)
@@ -76,7 +68,7 @@ func TestRenderer_Render(t *testing.T) {
 	ctx := context.Background()
 
 	highlighter := highlight.New()
-	events, err := highlighter.Highlight(ctx, *highlightCfg, source, loadInjection(t, captureNames))
+	events, err := highlighter.Highlight(ctx, *highlightCfg, source, loadInjection(t))
 	require.NoError(t, err)
 
 	tagsContext := tags.New()
@@ -95,6 +87,6 @@ func TestRenderer_Render(t *testing.T) {
 
 	renderer := NewRenderer(nil)
 	//renderer.Options.DebugTags = true
-	err = renderer.RenderDocument(f, events, allTags, allFolds, "test.go", source, captureNames, tagsCfg.SyntaxTypeNames(), theme)
+	err = renderer.RenderDocument(f, events, allTags, allFolds, "test.go", source, tagsCfg.SyntaxTypeNames(), theme)
 	require.NoError(t, err)
 }

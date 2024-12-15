@@ -13,7 +13,7 @@ import (
 )
 
 // Minimal theme for testing
-var theme = map[string]int{
+var theme = map[Highlight]int{
 	"variable":     15,
 	"function":     14,
 	"string":       10,
@@ -33,7 +33,7 @@ func colorStyle(color int) string {
 	return fmt.Sprintf("\x1b[38;5;%dm", color)
 }
 
-func loadInjection(t *testing.T, captureNames []string) InjectionCallback {
+func loadInjection(t *testing.T) InjectionCallback {
 	return func(languageName string) *Configuration {
 		switch languageName {
 		case "go":
@@ -47,8 +47,6 @@ func loadInjection(t *testing.T, captureNames []string) InjectionCallback {
 			cfg, err := NewConfiguration(language, languageName, highlightsQuery, injectionsQuery, nil)
 			require.NoError(t, err)
 
-			cfg.Configure(captureNames)
-
 			return cfg
 		case "comment":
 			highlightsQuery, err := os.ReadFile("../testdata/comment/highlights.scm")
@@ -58,8 +56,6 @@ func loadInjection(t *testing.T, captureNames []string) InjectionCallback {
 			cfg, err := NewConfiguration(commentLang, languageName, highlightsQuery, nil, nil)
 			require.NoError(t, err)
 
-			cfg.Configure(captureNames)
-
 			return cfg
 		}
 
@@ -68,21 +64,15 @@ func loadInjection(t *testing.T, captureNames []string) InjectionCallback {
 }
 
 func TestHighlighter_Highlight(t *testing.T) {
-	// Get the capture names from the theme
-	captureNames := make([]string, 0, len(theme))
-	for name := range theme {
-		captureNames = append(captureNames, name)
-	}
-
 	source, err := os.ReadFile("../testdata/test.go")
 	require.NoError(t, err)
 
-	cfg := loadInjection(t, captureNames)("go")
+	cfg := loadInjection(t)("go")
 
 	highlighter := New()
 
 	ctx := context.Background()
-	events, err := highlighter.Highlight(ctx, *cfg, source, loadInjection(t, captureNames))
+	events, err := highlighter.Highlight(ctx, *cfg, source, loadInjection(t))
 	require.NoError(t, err)
 
 	var styles []int
@@ -98,7 +88,8 @@ func TestHighlighter_Highlight(t *testing.T) {
 			styles = styles[:len(styles)-1]
 		// Start of a capture, push the style
 		case EventCaptureStart:
-			styles = append(styles, theme[captureNames[e.Highlight]])
+			_, style := FindHighlight(theme, e.Highlight, "", 15)
+			styles = append(styles, style)
 		// End of a capture, pop the style
 		case EventCaptureEnd:
 			styles = styles[:len(styles)-1]

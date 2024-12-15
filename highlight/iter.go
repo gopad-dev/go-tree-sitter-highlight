@@ -337,7 +337,7 @@ main:
 			}
 		}
 
-		currentHighlight := layer.Config.HighlightIndices[uint(capture.Index)]
+		currentHighlight := &layer.Config.HighlightNames[uint(capture.Index)]
 
 		// If this node represents a local definition, then store the current
 		// highlight value on the local scope entry representing this node.

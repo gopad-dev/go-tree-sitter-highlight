@@ -148,7 +148,10 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 		localScopeCaptureIndex        *uint
 	)
 
+	highlightNames := make([]Highlight, len(query.CaptureNames()))
 	for i, captureName := range query.CaptureNames() {
+		highlightNames[i] = Highlight(captureName)
+
 		ui := uint(i)
 		switch captureName {
 		case captureInjectionContent:
@@ -166,7 +169,6 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 		}
 	}
 
-	highlightIndices := make([]*Highlight, len(query.CaptureNames()))
 	return &Configuration{
 		Language:                      language,
 		LanguageName:                  languageName,
@@ -174,7 +176,7 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 		CombinedInjectionsQuery:       combinedInjectionsQuery,
 		LocalsPatternIndex:            localsPatternIndex,
 		HighlightsPatternIndex:        highlightsPatternIndex,
-		HighlightIndices:              highlightIndices,
+		HighlightNames:                highlightNames,
 		NonLocalVariablePatterns:      nonLocalVariablePatterns,
 		InjectionContentCaptureIndex:  injectionContentCaptureIndex,
 		InjectionLanguageCaptureIndex: injectionLanguageCaptureIndex,
@@ -192,7 +194,7 @@ type Configuration struct {
 	CombinedInjectionsQuery       *tree_sitter.Query
 	LocalsPatternIndex            uint
 	HighlightsPatternIndex        uint
-	HighlightIndices              []*Highlight
+	HighlightNames                []Highlight
 	NonLocalVariablePatterns      []bool
 	InjectionContentCaptureIndex  *uint
 	InjectionLanguageCaptureIndex *uint
@@ -205,37 +207,6 @@ type Configuration struct {
 // Names gets a slice containing all the highlight names used in the configuration.
 func (c *Configuration) Names() []string {
 	return c.Query.CaptureNames()
-}
-
-// Configure sets the list of recognized highlight names.
-//
-// Tree-sitter syntax-highlighting queries specify highlights in the form of dot-separated
-// highlight names like `punctuation.bracket` and `function.method.builtin`. Consumers of
-// these queries can choose to recognize highlights with different levels of specificity.
-// For example, the string `function.builtin` will match against `function`
-// and `function.builtin.constructor`, but will not match `function.method`.
-//
-// When highlighting, results are returned as `Highlight` values, which contain the index
-// of the matched highlight this list of highlight names.
-func (c *Configuration) Configure(recognizedNames []string) {
-	highlightIndices := make([]*Highlight, len(c.Query.CaptureNames()))
-	for i, captureName := range c.Query.CaptureNames() {
-		for {
-			j := slices.Index(recognizedNames, captureName)
-			if j != -1 {
-				index := Highlight(j)
-				highlightIndices[i] = &index
-				break
-			}
-
-			lastDot := strings.LastIndex(captureName, ".")
-			if lastDot == -1 {
-				break
-			}
-			captureName = captureName[:lastDot]
-		}
-	}
-	c.HighlightIndices = highlightIndices
 }
 
 // NonconformantCaptureNames returns the list of this configuration's capture names that are neither present in the

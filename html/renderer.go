@@ -60,7 +60,7 @@ type Renderer struct {
 	Options Options
 }
 
-func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight.Highlight, languages []string, allFolds []folds.Fold, captureNames []string) error {
+func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight.Highlight, languages []string, allFolds []folds.Fold, theme Theme) error {
 	for len(source) > 0 {
 		c, l := utf8.DecodeRune(source)
 		source = source[l:]
@@ -115,7 +115,7 @@ func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight
 				if i == 0 {
 					continue
 				}
-				if err := r.startHighlight(w, h, languageName, captureNames); err != nil {
+				if err := r.startHighlight(w, h, languageName, theme); err != nil {
 					return err
 				}
 				if h == highlight.DefaultHighlight {
@@ -134,12 +134,12 @@ func (r *Renderer) addText(w io.Writer, line uint, source []byte, hs []highlight
 	return nil
 }
 
-func (r *Renderer) startHighlight(w io.Writer, h highlight.Highlight, languageName string, captureNames []string) error {
+func (r *Renderer) startHighlight(w io.Writer, h highlight.Highlight, languageName string, theme Theme) error {
 	if _, err := fmt.Fprintf(w, "<span"); err != nil {
 		return err
 	}
 
-	attributes := r.Options.AttributeCallback(h, languageName, r.Options.ClassNamePrefix, captureNames)
+	attributes := r.Options.AttributeCallback(h, languageName, r.Options.ClassNamePrefix, theme)
 	if len(attributes) > 0 {
 		if _, err := w.Write([]byte(" ")); err != nil {
 			return err
@@ -174,7 +174,7 @@ func (r *Renderer) RenderCSS(w io.Writer, theme Theme) error {
 	}
 
 	for name, style := range theme.CodeStyles {
-		if _, err := fmt.Fprintf(w, ".%s%s {%s}\n", r.Options.ClassNamePrefix, escapeClassName(name), style); err != nil {
+		if _, err := fmt.Fprintf(w, ".%s%s {%s}\n", r.Options.ClassNamePrefix, escapeClassName(string(name)), style); err != nil {
 			return err
 		}
 	}
@@ -183,7 +183,7 @@ func (r *Renderer) RenderCSS(w io.Writer, theme Theme) error {
 }
 
 // Render renders the code to the writer with spans for each highlight capture.
-func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], resolvedTags []ResolvedTag, foldsIter iter.Seq2[folds.Fold, error], source []byte, captureNames []string) error {
+func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], resolvedTags []ResolvedTag, foldsIter iter.Seq2[folds.Fold, error], source []byte, theme Theme) error {
 	var allFolds []folds.Fold
 	for fold, err := range foldsIter {
 		if err != nil {
@@ -226,7 +226,7 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 		case highlight.EventCaptureStart:
 			highlights = append(highlights, e.Highlight)
 			language := languages[len(languages)-1]
-			if err = r.startHighlight(w, e.Highlight, language, captureNames); err != nil {
+			if err = r.startHighlight(w, e.Highlight, language, theme); err != nil {
 				return fmt.Errorf("error while starting highlight: %w", err)
 			}
 		case highlight.EventCaptureEnd:
@@ -277,7 +277,7 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 				text = append(text, []byte(html.EscapeString(string(source[i])))...)
 			}
 
-			if err = r.addText(w, line, text, highlights, languages, allFolds, captureNames); err != nil {
+			if err = r.addText(w, line, text, highlights, languages, allFolds, theme); err != nil {
 				return fmt.Errorf("error while writing source: %w", err)
 			}
 
@@ -312,7 +312,7 @@ func (r *Renderer) RenderSymbols(w io.Writer, resolvedTags []ResolvedTag, source
 		}
 
 		for {
-			_, ok = theme.CodeStyles[globalSymbol]
+			_, ok = theme.CodeStyles[highlight.Highlight(globalSymbol)]
 			if ok {
 				break
 			}
@@ -393,7 +393,7 @@ func (r *Renderer) RenderSymbols(w io.Writer, resolvedTags []ResolvedTag, source
 }
 
 // RenderDocument renders a full HTML document with the code and theme embedded.
-func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event, error], tagsIter iter.Seq2[tags.Tag, error], foldsIter iter.Seq2[folds.Fold, error], title string, source []byte, captureNames []string, syntaxTypeNames []string, theme Theme) error {
+func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event, error], tagsIter iter.Seq2[tags.Tag, error], foldsIter iter.Seq2[folds.Fold, error], title string, source []byte, syntaxTypeNames []string, theme Theme) error {
 	resolvedTags, err := r.ResolveRefs(tagsIter, source, syntaxTypeNames)
 	if err != nil {
 		return err
@@ -411,7 +411,7 @@ func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event,
 		return err
 	}
 
-	if err = r.Render(w, events, resolvedTags, foldsIter, source, captureNames); err != nil {
+	if err = r.Render(w, events, resolvedTags, foldsIter, source, theme); err != nil {
 		return err
 	}
 

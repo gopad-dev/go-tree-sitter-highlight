@@ -17,8 +17,8 @@
     display: inline;
     color: {{ .Theme.Text1 }};
     background-color: {{ .Theme.Background3 }};
-    padding-left: 1rem;
-    padding-right: 0.5rem;
+    padding-left: 1em;
+    padding-right: 0.5em;
     text-align: right;
     text-decoration: none;
     user-select: none;
@@ -34,8 +34,8 @@
 
 .{{ .ClassNamePrefix }}l {
     display: inline;
-    padding-left: 0.5rem;
-    padding-right: 0.5rem;
+    padding-left: 0.5em;
+    padding-right: 0.5em;
 }
 
 .{{ .ClassNamePrefix }}l:target {
@@ -70,25 +70,25 @@
 
 .{{ .ClassNamePrefix }}code details > summary::before {
     content: "";
-    height: 1rem;
-    width: 1rem;
+    height: 1lh;
+    width: 1lh;
     position: absolute;
-    transform: translateY(-1rem);
+    transform: translateY(-1lh);
     clip-path: polygon(40% 20%, 60% 50%, 40% 80%);
     background-color: {{ .Theme.Text0 }};
     transition: all 0.2s ease-in-out;
 }
 
 .{{ .ClassNamePrefix }}code details[open] > summary::before {
-    transform: translateY(-1rem) rotate(90deg);
+    transform: translateY(-1lh) rotate(90deg);
 }
 
 .{{ .ClassNamePrefix }}code details > summary::after {
     content: "";
-    height: 1rem;
-    width: 1rem;
+    height: 1lh;
+    width: 1lh;
     position: absolute;
-    transform: translateY(-1rem);
+    transform: translateY(-1lh);
     cursor: pointer;
 }
 
@@ -114,9 +114,9 @@
 
 .{{ .ClassNamePrefix }}def:target {
     background-color: {{ .Theme.HighlightColor }};
-    padding: 0 0.1rem;
-    margin: 0 -0.1rem;
-    border-radius: 0.2rem;
+    padding: 0 0.1em;
+    margin: 0 -0.1em;
+    border-radius: 0.2em;
 }
 
 /* Symbol Styles */
@@ -129,24 +129,24 @@
 }
 
 label[for="{{ .IDPrefix }}symbols-toggle"] {
-    height: 1.5rem;
-    width: 1.5rem;
-    margin-top: 1rem;
-    margin-right: 1rem;
+    height: 1.5em;
+    width: 1.5em;
+    margin-top: 1em;
+    margin-right: 1em;
     position: absolute;
     top: 0;
     right: 0;
     z-index: 1;
     cursor: pointer;
     background-color: {{ .Theme.Background1 }};
-    border-radius: 0.5rem;
+    border-radius: 0.5em;
     user-select: none;
 }
 
 label[for="{{ .IDPrefix }}symbols-toggle"] span {
     position: absolute;
-    width: 0.8rem;
-    height: 0.1rem;
+    width: 0.8em;
+    height: 0.1em;
     background-color: #F0F0F0;
     top: 50%;
     left: 50%;
@@ -184,9 +184,9 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 
 .{{ .ClassNamePrefix }}symbols {
     background-color: {{ .Theme.Background1 }};
-    width: 16rem;
-    border-radius: 0.5rem;
-    padding: 0.5rem;
+    width: 16em;
+    border-radius: 0.5em;
+    padding: 0.5em;
     white-space: normal;
     user-select: none;
     position: absolute;
@@ -196,7 +196,7 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 }
 
 .{{ .ClassNamePrefix }}symbols h2 {
-    margin: 0.5rem;
+    margin: 0.5em;
 }
 
 .{{ .ClassNamePrefix }}symbols > ul {
@@ -206,13 +206,13 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 
 .{{ .ClassNamePrefix }}symbols > ul > li {
     list-style-type: none;
-    margin-bottom: 0.1rem;
+    margin-bottom: 0.1em;
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li > details > summary,
 .{{ .ClassNamePrefix }}symbols > ul > li > details > div,
 .{{ .ClassNamePrefix }}symbols > ul > li > div {
-    padding: 0.5rem 0.5rem;
+    padding: 0.5em 0.5em;
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li > details > div {
@@ -235,7 +235,7 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 .{{ .ClassNamePrefix }}symbols > ul > li > details,
 .{{ .ClassNamePrefix }}symbols > ul > li > div {
     white-space: normal;
-    border-radius: 0.5rem;
+    border-radius: 0.5em;
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li details[open] {
@@ -247,7 +247,7 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li details[open] p {
-    padding: 0.5rem;
+    padding: 0.5em;
     margin: 0;
 }
 
@@ -256,48 +256,48 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li details[open] summary {
-    padding-bottom: 0.5rem;
+    padding-bottom: 0.5em;
 }
 
 .{{ .ClassNamePrefix }}refs > h3 {
     margin: 0;
-    padding: 0.5rem;
+    padding: 0.5em;
 }
 
 .{{ .ClassNamePrefix }}refs > ul {
-    margin: 0 0 0 1rem;
+    margin: 0 0 0 1em;
     padding: 0;
     list-style-type: none;
 }
 
 .{{ .ClassNamePrefix }}refs > ul > li {
-    margin-bottom: 0.1rem;
+    margin-bottom: 0.1em;
 }
 
 .{{ .ClassNamePrefix }}refs > ul > li > a {
     display: inline-block;
-    padding: 0.3rem;
+    padding: 0.3em;
     background-color: {{ .Theme.Background0 }};
-    border-radius: 0.2rem;
+    border-radius: 0.2em;
     width: 100%;
 }
 
 .{{ .ClassNamePrefix }}ref-ln {
     color: {{ .Theme.Text1 }};
     background-color: {{ .Theme.Background3 }};
-    padding: 0.3rem;
-    margin: -0.3rem 0 -0.3rem -0.3rem;
-    border-radius: 0.2rem;
+    padding: 0.3em;
+    margin: -0.3em 0 -0.3em -0.3em;
+    border-radius: 0.2em;
     user-select: none;
 }
 
 .{{ .ClassNamePrefix }}refs > ul > li code {
-    margin-left: 0.5rem;
+    margin-left: 0.5em;
 }
 
 .{{ .ClassNamePrefix }}symbol-kind {
     background-color: {{ .Theme.Background0 }};
-    padding: 0.2rem 0.3rem;
-    border-radius: 0.2rem;
+    padding: 0.2em 0.3em;
+    border-radius: 0.2em;
     user-select: none;
 }

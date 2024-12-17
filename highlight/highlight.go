@@ -93,6 +93,13 @@ func (h *Highlighter) popCursor() *tree_sitter.QueryCursor {
 // Highlight highlights the given source code using the given configuration. The source code is expected to be UTF-8 encoded.
 // The function returns an [iter.Seq2[Event, error]] that yields the highlight events or an error.
 func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source []byte, injectionCallback InjectionCallback) (iter.Seq2[Event, error], error) {
+	var endColumn uint
+	if lastNewline := bytes.LastIndexByte(source, '\n'); lastNewline != -1 {
+		endColumn = uint(len(source[lastNewline:]))
+	} else {
+		endColumn = uint(len(source))
+	}
+
 	layers, err := newIterLayers(ctx, source, "", h, injectionCallback, cfg, 0, []tree_sitter.Range{
 		{
 			StartByte: 0,
@@ -103,7 +110,7 @@ func (h *Highlighter) Highlight(ctx context.Context, cfg Configuration, source [
 			},
 			EndPoint: tree_sitter.Point{
 				Row:    uint(bytes.Count(source, []byte("\n"))),
-				Column: uint(len(source[bytes.LastIndexByte(source, '\n'):])) - 1,
+				Column: endColumn,
 			},
 		},
 	})
@@ -263,9 +270,9 @@ func injectionForMatch(config Configuration, parentName string, query *tree_sitt
 
 	for _, capture := range match.Captures {
 		index := uint(capture.Index)
-		if config.InjectionLanguageCaptureIndex != nil && index == *config.InjectionLanguageCaptureIndex {
+		if config.injectionLanguageCaptureIndex != nil && index == *config.injectionLanguageCaptureIndex {
 			languageName = capture.Node.Utf8Text(source)
-		} else if config.InjectionContentCaptureIndex != nil && index == *config.InjectionContentCaptureIndex {
+		} else if config.injectionContentCaptureIndex != nil && index == *config.injectionContentCaptureIndex {
 			contentNode = &capture.Node
 		}
 	}

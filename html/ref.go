@@ -3,6 +3,7 @@ package html
 import (
 	"fmt"
 	"iter"
+	"log"
 	"slices"
 
 	"go.gopad.dev/go-tree-sitter-highlight/tags"
@@ -28,6 +29,7 @@ func (r *Renderer) ResolveRefs(tagsIter iter.Seq2[tags.Tag, error], source []byt
 		if err != nil {
 			return nil, err
 		}
+		log.Printf("tag: %#v", tag)
 
 		id := r.Options.TagIDCallback(tag, source, syntaxTypeNames)
 		if tag.IsDefinition {

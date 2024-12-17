@@ -171,17 +171,17 @@ func NewConfiguration(language *tree_sitter.Language, languageName string, highl
 		Language:                      language,
 		LanguageName:                  languageName,
 		Query:                         query,
-		CombinedInjectionsQuery:       combinedInjectionsQuery,
-		LocalsPatternIndex:            localsPatternIndex,
-		HighlightsPatternIndex:        highlightsPatternIndex,
-		HighlightIndices:              highlightIndices,
-		NonLocalVariablePatterns:      nonLocalVariablePatterns,
-		InjectionContentCaptureIndex:  injectionContentCaptureIndex,
-		InjectionLanguageCaptureIndex: injectionLanguageCaptureIndex,
-		LocalScopeCaptureIndex:        localScopeCaptureIndex,
-		LocalDefCaptureIndex:          localDefCaptureIndex,
-		LocalDefValueCaptureIndex:     localDefValueCaptureIndex,
-		LocalRefCaptureIndex:          localRefCaptureIndex,
+		combinedInjectionsQuery:       combinedInjectionsQuery,
+		localsPatternIndex:            localsPatternIndex,
+		highlightsPatternIndex:        highlightsPatternIndex,
+		highlightIndices:              highlightIndices,
+		nonLocalVariablePatterns:      nonLocalVariablePatterns,
+		injectionContentCaptureIndex:  injectionContentCaptureIndex,
+		injectionLanguageCaptureIndex: injectionLanguageCaptureIndex,
+		localScopeCaptureIndex:        localScopeCaptureIndex,
+		localDefCaptureIndex:          localDefCaptureIndex,
+		localDefValueCaptureIndex:     localDefValueCaptureIndex,
+		localRefCaptureIndex:          localRefCaptureIndex,
 	}, nil
 }
 
@@ -189,21 +189,41 @@ type Configuration struct {
 	Language                      *tree_sitter.Language
 	LanguageName                  string
 	Query                         *tree_sitter.Query
-	CombinedInjectionsQuery       *tree_sitter.Query
-	LocalsPatternIndex            uint
-	HighlightsPatternIndex        uint
-	HighlightIndices              []*Highlight
-	NonLocalVariablePatterns      []bool
-	InjectionContentCaptureIndex  *uint
-	InjectionLanguageCaptureIndex *uint
-	LocalScopeCaptureIndex        *uint
-	LocalDefCaptureIndex          *uint
-	LocalDefValueCaptureIndex     *uint
-	LocalRefCaptureIndex          *uint
+	combinedInjectionsQuery       *tree_sitter.Query
+	localsPatternIndex            uint
+	highlightsPatternIndex        uint
+	highlightIndices              []*Highlight
+	nonLocalVariablePatterns      []bool
+	injectionContentCaptureIndex  *uint
+	injectionLanguageCaptureIndex *uint
+	localScopeCaptureIndex        *uint
+	localDefCaptureIndex          *uint
+	localDefValueCaptureIndex     *uint
+	localRefCaptureIndex          *uint
+}
+
+// Copy returns a copy of the configuration.
+func (c Configuration) Copy() Configuration {
+	return Configuration{
+		Language:                      c.Language,
+		LanguageName:                  c.LanguageName,
+		Query:                         c.Query,
+		combinedInjectionsQuery:       c.combinedInjectionsQuery,
+		localsPatternIndex:            c.localsPatternIndex,
+		highlightsPatternIndex:        c.highlightsPatternIndex,
+		highlightIndices:              c.highlightIndices,
+		nonLocalVariablePatterns:      c.nonLocalVariablePatterns,
+		injectionContentCaptureIndex:  c.injectionContentCaptureIndex,
+		injectionLanguageCaptureIndex: c.injectionLanguageCaptureIndex,
+		localScopeCaptureIndex:        c.localScopeCaptureIndex,
+		localDefCaptureIndex:          c.localDefCaptureIndex,
+		localDefValueCaptureIndex:     c.localDefValueCaptureIndex,
+		localRefCaptureIndex:          c.localRefCaptureIndex,
+	}
 }
 
 // Names gets a slice containing all the highlight names used in the configuration.
-func (c *Configuration) Names() []string {
+func (c Configuration) Names() []string {
 	return c.Query.CaptureNames()
 }
 
@@ -235,13 +255,13 @@ func (c *Configuration) Configure(recognizedNames []string) {
 			captureName = captureName[:lastDot]
 		}
 	}
-	c.HighlightIndices = highlightIndices
+	c.highlightIndices = highlightIndices
 }
 
 // NonconformantCaptureNames returns the list of this configuration's capture names that are neither present in the
 // list of predefined 'canonical' names nor start with an underscore (denoting 'private'
 // captures used as part of capture internals).
-func (c *Configuration) NonconformantCaptureNames(captureNames []string) []string {
+func (c Configuration) NonconformantCaptureNames(captureNames []string) []string {
 	if len(captureNames) == 0 {
 		captureNames = StandardCaptureNames
 	}

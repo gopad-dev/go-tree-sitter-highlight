@@ -133,6 +133,13 @@ func (c *Tagger) Tags(ctx context.Context, cfg Configuration, source []byte) (it
 
 	matches := peekiter.NewQueryMatches(c.cursor.Matches(cfg.Query, tree.RootNode(), source))
 
+	var endColumn uint
+	if lastNewline := bytes.LastIndexByte(source, '\n'); lastNewline != -1 {
+		endColumn = uint(len(source[lastNewline:]))
+	} else {
+		endColumn = uint(len(source))
+	}
+
 	i := &iterator{
 		Ctx:     ctx,
 		Source:  source,
@@ -151,7 +158,7 @@ func (c *Tagger) Tags(ctx context.Context, cfg Configuration, source []byte) (it
 					EndByte: uint(len(source)),
 					EndPoint: tree_sitter.Point{
 						Row:    uint(bytes.Count(source, []byte("\n"))),
-						Column: uint(len(source[bytes.LastIndexByte(source, '\n'):])) - 1,
+						Column: endColumn,
 					},
 				},
 				LocalDefs: nil,

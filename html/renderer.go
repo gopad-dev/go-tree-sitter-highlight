@@ -185,11 +185,13 @@ func (r *Renderer) RenderCSS(w io.Writer, theme Theme) error {
 // Render renders the code to the writer with spans for each highlight capture.
 func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error], resolvedTags []ResolvedTag, foldsIter iter.Seq2[folds.Fold, error], source []byte, captureNames []string) error {
 	var allFolds []folds.Fold
-	for fold, err := range foldsIter {
-		if err != nil {
-			return err
+	if foldsIter != nil {
+		for fold, err := range foldsIter {
+			if err != nil {
+				return err
+			}
+			allFolds = append(allFolds, fold)
 		}
-		allFolds = append(allFolds, fold)
 	}
 
 	nextTag, closeTag := iter.Pull(slices.Values(resolvedTags))
@@ -249,7 +251,7 @@ func (r *Renderer) Render(w io.Writer, events iter.Seq2[highlight.Event, error],
 					}
 				}
 
-				if i == currentTag.Tag.NameRange.Start {
+				if currentTagOk && i == currentTag.Tag.NameRange.Start {
 					i = currentTag.Tag.NameRange.End - 1
 
 					name := html.EscapeString(currentTag.Tag.Name(source))
@@ -394,38 +396,42 @@ func (r *Renderer) RenderSymbols(w io.Writer, resolvedTags []ResolvedTag, source
 
 // RenderDocument renders a full HTML document with the code and theme embedded.
 func (r *Renderer) RenderDocument(w io.Writer, events iter.Seq2[highlight.Event, error], tagsIter iter.Seq2[tags.Tag, error], foldsIter iter.Seq2[folds.Fold, error], title string, source []byte, captureNames []string, syntaxTypeNames []string, theme Theme) error {
-	resolvedTags, err := r.ResolveRefs(tagsIter, source, syntaxTypeNames)
-	if err != nil {
-		return err
-	}
-
-	if _, err = fmt.Fprintf(w, "<!DOCTYPE html>\n<html style=\"background-color:%s;\">\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", theme.Background0, html.EscapeString(title)); err != nil {
-		return err
-	}
-
-	if err = r.RenderCSS(w, theme); err != nil {
-		return err
-	}
-
-	if _, err = fmt.Fprintf(w, "</style>\n</head>\n<body>\n<div class=\"%shl\"><code class=\"%scode\">", r.Options.ClassNamePrefix, r.Options.ClassNamePrefix); err != nil {
-		return err
-	}
-
-	if err = r.Render(w, events, resolvedTags, foldsIter, source, captureNames); err != nil {
-		return err
-	}
-
-	if _, err = fmt.Fprintf(w, "</code>\n"); err != nil {
-		return err
-	}
-
-	if r.Options.ShowSymbols {
-		if err = r.RenderSymbols(w, resolvedTags, source, syntaxTypeNames, theme); err != nil {
+	var resolvedTags []ResolvedTag
+	if tagsIter != nil {
+		var err error
+		resolvedTags, err = r.ResolveRefs(tagsIter, source, syntaxTypeNames)
+		if err != nil {
 			return err
 		}
 	}
 
-	if _, err = fmt.Fprintf(w, "</div>\n</body>\n</html>\n"); err != nil {
+	if _, err := fmt.Fprintf(w, "<!DOCTYPE html>\n<html style=\"background-color:%s;\">\n<head>\n<meta charset=\"utf-8\">\n<title>%s</title>\n<style>\n", theme.CodeBackgroundColor, html.EscapeString(title)); err != nil {
+		return err
+	}
+
+	if err := r.RenderCSS(w, theme); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(w, "</style>\n</head>\n<body>\n<div class=\"%shl\"><code class=\"%scode\">", r.Options.ClassNamePrefix, r.Options.ClassNamePrefix); err != nil {
+		return err
+	}
+
+	if err := r.Render(w, events, resolvedTags, foldsIter, source, captureNames); err != nil {
+		return err
+	}
+
+	if _, err := fmt.Fprintf(w, "</code>\n"); err != nil {
+		return err
+	}
+
+	if r.Options.ShowSymbols {
+		if err := r.RenderSymbols(w, resolvedTags, source, syntaxTypeNames, theme); err != nil {
+			return err
+		}
+	}
+
+	if _, err := fmt.Fprintf(w, "</div>\n</body>\n</html>\n"); err != nil {
 		return err
 	}
 

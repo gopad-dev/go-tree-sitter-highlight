@@ -9,6 +9,7 @@ require (
 	github.com/stretchr/testify v1.10.0
 	github.com/tree-sitter/go-tree-sitter v0.24.0
 	github.com/tree-sitter/tree-sitter-go v0.23.4
+	github.com/tree-sitter/tree-sitter-json v0.24.8
 )
 
 require (

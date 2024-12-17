@@ -44,16 +44,16 @@ palette = 15=#FEFEF8
 
 func DefaultTheme() Theme {
 	return Theme{
-		TabSize: 4,
-		Text0:   "#f8f8f2",
-		Text1:   "#8A8A8A",
-
-		Background0: "#212122",
-		Background1: "#2b2b2b",
-		Background2: "#43494a",
-		Background3: "#363535",
-
-		HighlightColor: "#534500",
+		TabSize:                      4,
+		CodeColor:                    "#F8F8F2",
+		CodeBackgroundColor:          "#212122",
+		LineNumberColor:              "#8A8A8A",
+		LineNumberBackgroundColor:    "#2B2B2B",
+		HighlightColor:               "#534500",
+		SymbolsColor:                 "#F8F8F2",
+		SymbolsBackgroundColor:       "#2B2B2B",
+		SymbolsActiveBackgroundColor: "#43494A",
+		SymbolKindBackgroundColor:    "#212122",
 		CodeStyles: map[string]string{
 			"variable":              "color: #f8f8f2;",
 			"variable.other.member": "color: #FF4352;",
@@ -70,17 +70,18 @@ func DefaultTheme() Theme {
 
 // Theme is used to style the rendered code, line numbers & symbols.
 type Theme struct {
-	TabSize int
+	TabSize             int
+	CodeColor           string
+	CodeBackgroundColor string
 
-	Text0 string
-	Text1 string
+	LineNumberColor           string
+	LineNumberBackgroundColor string
+	HighlightColor            string
 
-	Background0 string
-	Background1 string
-	Background2 string
-	Background3 string
-
-	HighlightColor string
+	SymbolsColor                 string
+	SymbolsBackgroundColor       string
+	SymbolsActiveBackgroundColor string
+	SymbolKindBackgroundColor    string
 
 	CodeStyles map[string]string
 }

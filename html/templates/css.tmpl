@@ -1,8 +1,8 @@
 /* Highlight Styles */
 .{{ .ClassNamePrefix }}hl {
     font-family: monospace;
-    color: {{ .Theme.Text0}};
-    background-color: {{ .Theme.Background0 }};
+    color: {{ .Theme.CodeColor }};
+    background-color: {{ .Theme.CodeBackgroundColor }};
     tab-size: {{ .Theme.TabSize }};
     position: relative;
 }
@@ -15,8 +15,8 @@
 
 .{{ .ClassNamePrefix }}ln {
     display: inline;
-    color: {{ .Theme.Text1 }};
-    background-color: {{ .Theme.Background3 }};
+    color: {{ .Theme.LineNumberColor }};
+    background-color: {{ .Theme.LineNumberBackgroundColor }};
     padding-left: 1em;
     padding-right: 0.5em;
     text-align: right;
@@ -71,11 +71,11 @@
 .{{ .ClassNamePrefix }}code details > summary::before {
     content: "";
     height: 1lh;
-    width: 1lh;
+    width: 1em;
     position: absolute;
     transform: translateY(-1lh);
     clip-path: polygon(40% 20%, 60% 50%, 40% 80%);
-    background-color: {{ .Theme.Text0 }};
+    background-color: {{ .Theme.CodeColor }};
     transition: all 0.2s ease-in-out;
 }
 
@@ -86,7 +86,7 @@
 .{{ .ClassNamePrefix }}code details > summary::after {
     content: "";
     height: 1lh;
-    width: 1lh;
+    width: 1em;
     position: absolute;
     transform: translateY(-1lh);
     cursor: pointer;
@@ -138,7 +138,7 @@ label[for="{{ .IDPrefix }}symbols-toggle"] {
     right: 0;
     z-index: 1;
     cursor: pointer;
-    background-color: {{ .Theme.Background1 }};
+    background-color: {{ .Theme.SymbolsBackgroundColor }};
     border-radius: 0.5em;
     user-select: none;
 }
@@ -147,7 +147,7 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span {
     position: absolute;
     width: 0.8em;
     height: 0.1em;
-    background-color: #F0F0F0;
+    background-color: {{ .Theme.SymbolsColor }};
     top: 50%;
     left: 50%;
     transition: all 0.3s ease-in-out;
@@ -183,8 +183,9 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 }
 
 .{{ .ClassNamePrefix }}symbols {
-    background-color: {{ .Theme.Background1 }};
-    width: 16em;
+    color: {{ .Theme.SymbolsColor }};
+    background-color: {{ .Theme.SymbolsBackgroundColor }};
+    width: 33%;
     border-radius: 0.5em;
     padding: 0.5em;
     white-space: normal;
@@ -216,11 +217,11 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li > details > div {
-    border-top: 1px solid{{ .Theme.Background1 }};
+    border-top: 1px solid{{ .Theme.SymbolsBackgroundColor }};
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li > *:hover {
-    background-color: {{ .Theme.Background2 }};
+    background-color: {{ .Theme.SymbolsActiveBackgroundColor }};
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li a {
@@ -239,11 +240,12 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li details[open] {
-    background-color: {{ .Theme.Background2 }};
+    background-color: {{ .Theme.SymbolsActiveBackgroundColor }};
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li p code {
-    background-color: {{ .Theme.Background0 }};
+    background-color: {{ .Theme.CodeBackgroundColor }};
+    color: {{ .Theme.CodeColor }};
 }
 
 .{{ .ClassNamePrefix }}symbols > ul > li details[open] p {
@@ -277,14 +279,14 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 .{{ .ClassNamePrefix }}refs > ul > li > a {
     display: inline-block;
     padding: 0.3em;
-    background-color: {{ .Theme.Background0 }};
+    background-color: {{ .Theme.CodeBackgroundColor }};
     border-radius: 0.2em;
     width: 100%;
 }
 
 .{{ .ClassNamePrefix }}ref-ln {
-    color: {{ .Theme.Text1 }};
-    background-color: {{ .Theme.Background3 }};
+    color: {{ .Theme.LineNumberColor }};
+    background-color: {{ .Theme.LineNumberBackgroundColor }};
     padding: 0.3em;
     margin: -0.3em 0 -0.3em -0.3em;
     border-radius: 0.2em;
@@ -296,7 +298,7 @@ label[for="{{ .IDPrefix }}symbols-toggle"] span:nth-child(3) {
 }
 
 .{{ .ClassNamePrefix }}symbol-kind {
-    background-color: {{ .Theme.Background0 }};
+    background-color: {{ .Theme.SymbolKindBackgroundColor }};
     padding: 0.2em 0.3em;
     border-radius: 0.2em;
     user-select: none;

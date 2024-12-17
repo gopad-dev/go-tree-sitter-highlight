@@ -43,7 +43,7 @@ func TestRenderer_Render(t *testing.T) {
 		captureNames = append(captureNames, name)
 	}
 
-	source, err := os.ReadFile("../testdata/test.go")
+	source, err := os.ReadFile("../testdata/test.json")
 	require.NoError(t, err)
 
 	highlightsQuery, err := os.ReadFile("../testdata/go/highlights.scm")

@@ -102,17 +102,17 @@ func newIterLayers(
 			cursor := highlighter.popCursor()
 
 			// Process combined injections.
-			if config.CombinedInjectionsQuery != nil {
-				injectionsByPatternIndex := make([]injectionItem, config.CombinedInjectionsQuery.PatternCount())
+			if config.combinedInjectionsQuery != nil {
+				injectionsByPatternIndex := make([]injectionItem, config.combinedInjectionsQuery.PatternCount())
 
-				matches := cursor.Matches(config.CombinedInjectionsQuery, tree.RootNode(), source)
+				matches := cursor.Matches(config.combinedInjectionsQuery, tree.RootNode(), source)
 				for {
 					match := matches.Next()
 					if match == nil {
 						break
 					}
 
-					languageName, contentNode, includeChildren := injectionForMatch(config, parentName, config.CombinedInjectionsQuery, *match, source)
+					languageName, contentNode, includeChildren := injectionForMatch(config, parentName, config.combinedInjectionsQuery, *match, source)
 
 					if languageName == "" {
 						injectionsByPatternIndex[match.PatternIndex].languageName = languageName

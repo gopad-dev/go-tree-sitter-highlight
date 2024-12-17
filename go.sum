@@ -19,6 +19,7 @@ github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2 h1:Jamvg5psRI
 github.com/pmezard/go-difflib v1.0.1-0.20181226105442-5d4384ee4fb2/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/rogpeppe/go-internal v1.9.0/go.mod h1:WtVeX8xhTBvf0smdhujwtBcq4Qrzq/fJaraNFVN+nFs=
 github.com/rogpeppe/go-internal v1.13.1 h1:KvO1DLK/DRN07sQ1LQKScxyZJuNnedQ5/wKSR38lUII=
+github.com/rogpeppe/go-internal v1.13.1/go.mod h1:uMEvuHeurkdAXX61udpOXGD/AzZDWNMNyH2VO9fmH0o=
 github.com/stretchr/testify v1.10.0 h1:Xv5erBjTwe/5IxqUQTdXv5kgmIvbHo3QQyRwhJsOfJA=
 github.com/stretchr/testify v1.10.0/go.mod h1:r2ic/lqez/lEtzL7wO/rwa5dbSLXVDPFyf8C91i36aY=
 github.com/tree-sitter/tree-sitter-c v0.21.5-0.20240818205408-927da1f210eb h1:A8425heRM8mylnv4H58FPUiH+aYivyitre0PzxrfmWs=
@@ -35,8 +36,8 @@ github.com/tree-sitter/tree-sitter-java v0.21.1-0.20240824015150-576d8097e495 h1
 github.com/tree-sitter/tree-sitter-java v0.21.1-0.20240824015150-576d8097e495/go.mod h1:oyaR7fLnRV0hT9z6qwE9GkaeTom/hTDwK3H2idcOJFc=
 github.com/tree-sitter/tree-sitter-javascript v0.21.5-0.20240818005344-15887341e5b5 h1:om4X9AVg3asL8gxNJDcz4e/Wp+VpQj1PY3uJXKr6EOg=
 github.com/tree-sitter/tree-sitter-javascript v0.21.5-0.20240818005344-15887341e5b5/go.mod h1:nNqgPoV/h9uYWk6kYEFdEAhNVOacpfpRW5SFmdaP4tU=
-github.com/tree-sitter/tree-sitter-json v0.21.1-0.20240818005659-bdd69eb8c8a5 h1:pfV3G3k7NCKqKk8THBmyuh2zA33lgYHS3GVrzRR8ry4=
-github.com/tree-sitter/tree-sitter-json v0.21.1-0.20240818005659-bdd69eb8c8a5/go.mod h1:GbMKRjLfk0H+PI7nLi1Sx5lHf5wCpLz9al8tQYSxpEk=
+github.com/tree-sitter/tree-sitter-json v0.24.8 h1:tV5rMkihgtiOe14a9LHfDY5kzTl5GNUYe6carZBn0fQ=
+github.com/tree-sitter/tree-sitter-json v0.24.8/go.mod h1:F351KK0KGvCaYbZ5zxwx/gWWvZhIDl0eMtn+1r+gQbo=
 github.com/tree-sitter/tree-sitter-php v0.22.9-0.20240819002312-a552625b56c1 h1:ZXZMDwE+IhUtGug4Brv6NjJWUU3rfkZBKpemf6RY8/g=
 github.com/tree-sitter/tree-sitter-php v0.22.9-0.20240819002312-a552625b56c1/go.mod h1:UKCLuYnJ312Mei+3cyTmGOHzn0YAnaPRECgJmHtzrqs=
 github.com/tree-sitter/tree-sitter-python v0.21.1-0.20240818005537-55a9b8a4fbfb h1:EXEM82lFM7JjJb6qiKZXkpIDaCcbV2obNn82ghwj9lw=
